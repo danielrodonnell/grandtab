@@ -68,9 +68,14 @@ render_pages <- function(pdf_path, pages, out_dir = "data-raw/pages",
 # -- Detect page map ----------------------------------------------------------
 
 #' Auto-detect which PDF pages correspond to each baseline table
+#'
+#' Finds the pages containing the newest year, then checks whether the
+#' preceding page also contains bracketed (provisional) data. Returns a
+#' list of integer vectors — one per table — each of length 1 or 2.
+#'
 #' @param pdf_path Local path to PDF
 #' @param baseline Named list of 10 elements, each list(title, data_frame)
-#' @return Integer vector of page numbers
+#' @return List of integer vectors (page numbers per table), or NULL if up to date
 detect_page_map <- function(pdf_path, baseline) {
   all_data <- pdf_data(pdf_path)
 
@@ -81,21 +86,36 @@ detect_page_map <- function(pdf_path, baseline) {
   new_year <- as.character(last_year + 1)
   target <- paste0(new_year, "]")
 
-  # Find pages containing the target string
-  pages <- which(sapply(all_data, \(pg) {
+  # Find pages containing the target string (these are the "last" pages per table)
+  target_pages <- which(sapply(all_data, \(pg) {
     any(str_detect(pg$text, fixed(target)))
   }))
 
-  if(length(pages) == 0) {
+  if(length(target_pages) == 0) {
     return(NULL)
   }else {
-    message("Found '", target, "' on pages: ", paste(pages, collapse = ", "))
+    message("Found '", target, "' on pages: ", paste(target_pages, collapse = ", "))
   }
-  if (length(pages) != length(baseline)) {
-    warning("Expected ", length(baseline), " pages, found ", length(pages))
+  if (length(target_pages) != length(baseline)) {
+    warning("Expected ", length(baseline), " target pages, found ", length(target_pages))
   }
 
-  pages
+  # For each target page, check if the preceding page also has bracketed data
+  page_has_brackets <- function(pg) {
+    if (pg < 1 || pg > length(all_data)) return(FALSE)
+    any(startsWith(all_data[[pg]]$text, "["))
+  }
+
+  page_map <- lapply(target_pages, \(pg) {
+    if (pg > 1 && page_has_brackets(pg - 1)) {
+      c(pg - 1L, pg)
+    } else {
+      pg
+    }
+  })
+
+  message("Page map: ", paste(sapply(page_map, \(x) paste(x, collapse="-")), collapse = ", "))
+  page_map
 }
 
 # -- Update baseline via Claude API ------------------------------------------
@@ -107,13 +127,11 @@ detect_page_map <- function(pdf_path, baseline) {
 #' @return Updated baseline list with new rows appended
 update_baseline <- function(pdf_path, baseline, img_dir = "data-raw/pages") {
 
-  # Auto-detect page mapping
+  # Auto-detect page mapping (returns list of integer vectors)
   page_map <- detect_page_map(pdf_path, baseline)
 
   if(is.null(page_map)) {
     return(cat("Stored GrandTab database is already up to date!"))
-  }else{
-    message("Detected page map: ", paste(page_map, collapse = ", "))
   }
 
   if (length(page_map) != length(baseline)) {
@@ -121,51 +139,84 @@ update_baseline <- function(pdf_path, baseline, img_dir = "data-raw/pages") {
          ") does not match baseline length (", length(baseline), ")")
   }
 
-  # Render only the pages we need
-  render_pages(pdf_path, page_map, out_dir = img_dir)
+  # Render all unique pages we need
+  all_pages <- sort(unique(unlist(page_map)))
+  render_pages(pdf_path, all_pages, out_dir = img_dir)
 
-  updated <- map2(baseline, page_map, \(bl, pg) {
+  updated <- map2(baseline, page_map, \(bl, pages) {
     df <- bl[[2]]
     col_names <- names(df)
+    year_col <- df[[1]]
 
-    # Last 3 rows as CSV for context
-    tail_csv <- df |>
-      tail(3) |>
-      format_csv()
+    # Find rows with bracketed years (provisional data)
+    bracketed <- startsWith(year_col, "[")
 
-    # Determine expected new years dynamically
-    last_baseline_year <- as.numeric(str_extract(tail(df[[1]], 1), "\\d{4}"))
-    next_years <- paste((last_baseline_year + 1):(last_baseline_year + 2),
-                        collapse = " and ")
+    if (any(bracketed)) {
+      first_bracket_idx <- which(bracketed)[1]
 
-    # Read and encode the page image
-    img_path <- file.path(img_dir, sprintf("grandtab_page_%02d.png", pg))
-    img_b64 <- base64enc::base64encode(
-      readBin(img_path, "raw", file.info(img_path)$size)
-    )
+      # Use up to 3 rows before the first bracketed row as context
+      context_end <- first_bracket_idx - 1
+      context_start <- max(1, context_end - 2)
+      context_rows <- if (context_end >= 1) df[context_start:context_end, ] else df[0, ]
+
+      # Year range to extract: first bracketed year through any new years
+      first_bracket_year <- str_extract(year_col[first_bracket_idx], "\\d{4}")
+      last_year <- as.numeric(str_extract(tail(year_col, 1), "\\d{4}"))
+      year_range <- paste0(first_bracket_year, " through ",
+                           last_year + 1, " (or later if present)")
+    } else {
+      # No bracketed years — fall back to extracting new rows only
+      first_bracket_idx <- nrow(df) + 1
+      context_rows <- tail(df, 3)
+      last_year <- as.numeric(str_extract(tail(year_col, 1), "\\d{4}"))
+      year_range <- paste((last_year + 1):(last_year + 2), collapse = " and ")
+    }
+
+    context_csv <- context_rows |> format_csv()
+
+    # Encode page image(s)
+    img_content <- lapply(pages, \(pg) {
+      img_path <- file.path(img_dir, sprintf("grandtab_page_%02d.png", pg))
+      img_b64 <- base64enc::base64encode(
+        readBin(img_path, "raw", file.info(img_path)$size)
+      )
+      list(type = "image",
+           source = list(type = "base64", media_type = "image/png",
+                         data = img_b64))
+    })
+
+    if (length(pages) == 1) {
+      image_note <- "Look at the table in this image."
+    } else {
+      image_note <- "The table spans two pages shown in these images (in order)."
+    }
 
     prompt <- sprintf("
 I have an existing data frame with these exact columns:
 %s
 
-Here are the last 3 rows:
+Here are the last few confirmed (non-provisional) rows for context:
 %s
 
-Look at the table in this image. Find ALL rows after the last row shown above.
-I expect rows for years %s to exist in the image.
+%s Extract ALL rows for years %s.
+These rows replace provisional data (shown in brackets like [2024]) and include
+any new data added to the table.
 Return them as CSV with the exact column names above as the header row.
 The columns must align exactly to my existing structure.
 
 Rules:
 - Remove commas from numbers (e.g., 12,479 -> 12479)
 - Use NA for blank/empty cells
-- Preserve year format exactly as shown (e.g., [2024] or [Nov 2023 - Apr 2024])
+- Preserve year format exactly as shown in the image (e.g., [2024] or [Nov 2023 - Apr 2024])
 - ALWAYS include rows even if every cell except YEAR is blank — fill non-YEAR
   columns with NA but still include the row
 - If a row has ONLY a year value and nothing else, still include it with NA
   for all other columns
 - No commentary, no markdown fences — just the CSV header + data rows
-", paste(col_names, collapse = ", "), tail_csv, next_years)
+", paste(col_names, collapse = ", "), context_csv, image_note, year_range)
+
+    # Build message content: image(s) first, then the text prompt
+    msg_content <- c(img_content, list(list(type = "text", text = prompt)))
 
     resp <- request("https://api.anthropic.com/v1/messages") |>
       req_headers(
@@ -175,15 +226,10 @@ Rules:
       ) |>
       req_body_json(list(
         model      = MODEL,
-        max_tokens = 4096L,
+        max_tokens = 8192L,
         messages   = list(list(
           role    = "user",
-          content = list(
-            list(type = "image",
-                 source = list(type = "base64", media_type = "image/png",
-                               data = img_b64)),
-            list(type = "text", text = prompt)
-          )
+          content = msg_content
         ))
       )) |>
       req_perform()
@@ -194,7 +240,7 @@ Rules:
       read_csv(I(csv_text), show_col_types = FALSE, na = "NA",
                col_types = cols(.default = col_character())),
       error = function(e) {
-        warning("Parse failed on page ", pg, ": ", e$message)
+        warning("Parse failed on pages ", paste(pages, collapse="-"), ": ", e$message)
         return(NULL)
       }
     )
@@ -202,16 +248,20 @@ Rules:
     if (is.null(new_rows)) return(bl)
 
     if (!identical(names(new_rows), col_names)) {
-      warning("Column mismatch on page ", pg, ":\n  Expected: ",
-              paste(col_names, collapse = ", "), "\n  Got: ",
-              paste(names(new_rows), collapse = ", "))
+      warning("Column mismatch on pages ", paste(pages, collapse="-"),
+              ":\n  Expected: ", paste(col_names, collapse = ", "),
+              "\n  Got: ", paste(names(new_rows), collapse = ", "))
     }
 
-    message("Page ", pg, ": ", nrow(new_rows), " new rows extracted")
+    # Keep confirmed rows (before bracketed years) and replace with fresh extraction
+    confirmed_rows <- df[seq_len(first_bracket_idx - 1), ]
+
+    message("Pages ", paste(pages, collapse="-"), ": ", nrow(new_rows),
+            " rows extracted (replacing ", sum(bracketed), " provisional rows)")
     Sys.sleep(API_DELAY)
 
     list(bl[[1]], bind_rows(
-      mutate(df, across(everything(), as.character)),
+      mutate(confirmed_rows, across(everything(), as.character)),
       new_rows
     ))
   })
