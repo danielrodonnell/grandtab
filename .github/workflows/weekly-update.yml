@@ -1,0 +1,51 @@
+name: Weekly GrandTab Update
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9am UTC
+  workflow_dispatch:       # Allow manual trigger
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libpoppler-cpp-dev
+
+      - name: Install R packages
+        run: |
+          Rscript -e 'install.packages(c(
+            "reticulate", "httr2", "dplyr", "readr", "purrr",
+            "stringr", "pdftools", "base64enc"
+          ), repos = "https://cloud.r-project.org")'
+
+      - name: Set up Python and pymupdf
+        run: |
+          pip install pymupdf
+
+      - name: Run update
+        id: update
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          Rscript data-raw/update_ci.R
+
+      - name: Commit and push if updated
+        if: steps.update.outputs.UPDATE_NEEDED == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/grandtab_detail.rda
+          git commit -m "Update grandtab_detail.rda with latest data"
+          git push
