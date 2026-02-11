@@ -20,7 +20,7 @@ load("data/grandtab_detail.rda")
 
 # 3. Run update — capture cat() output to detect "up to date"
 result <- capture.output(
-  updated <- update_baseline(pdf_path, grandtab_detail2),
+  updated <- update_baseline(pdf_path, grandtab_detail),
   type = "output"
 )
 
