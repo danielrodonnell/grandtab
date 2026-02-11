@@ -25,10 +25,13 @@ jobs:
 
       - name: Install R packages
         run: |
-          Rscript -e 'install.packages(c(
-            "reticulate", "httr2", "dplyr", "readr", "purrr",
-            "stringr", "pdftools", "base64enc"
-          ), repos = "https://cloud.r-project.org")'
+          Rscript -e '
+            dir.create(Sys.getenv("R_LIBS_USER"), recursive = TRUE, showWarnings = FALSE)
+            install.packages(c(
+              "reticulate", "httr2", "dplyr", "readr", "purrr",
+              "stringr", "pdftools", "base64enc"
+            ), lib = Sys.getenv("R_LIBS_USER"), repos = "https://cloud.r-project.org")
+          '
 
       - name: Set up Python and pymupdf
         run: |
