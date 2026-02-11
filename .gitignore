@@ -1,0 +1,12 @@
+# R package specific
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# OS files
+.DS_Store
+
+# Claude
+.claude/
