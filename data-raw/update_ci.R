@@ -10,7 +10,7 @@ library(stringr)
 library(pdftools)
 library(base64enc)
 
-source("R/update_baseline.R")
+source("data-raw/update_stored_grandtab.R")
 
 # 1. Download latest PDF
 pdf_path <- download_grandtab()
@@ -28,7 +28,7 @@ if (any(grepl("already up to date", result, ignore.case = TRUE))) {
   message("No update needed.")
   writeLines("UPDATE_NEEDED=false", Sys.getenv("GITHUB_OUTPUT"))
 } else {
-  # 4. Save updated data
+  # 4. Save updated detail (sections and summary already saved by update_baseline)
   grandtab_detail <- updated
   save(grandtab_detail, file = "data/grandtab_detail.rda", compress = "xz")
   message("Saved updated grandtab_detail.rda")
