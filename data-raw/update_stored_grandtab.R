@@ -124,6 +124,80 @@ detect_page_map <- function(pdf_path, baseline) {
   page_map
 }
 
+# -- Cross-table consistency validation --------------------------------------
+
+#' Validate that Table 1 summary totals match detail table totals
+#'
+#' Compares LATE-FALL_TOTAL, WINTER_TOTAL, SPRING_TOTAL, and FALL_TOTAL from
+#' Table 1 (ALL RUNS) against the corresponding TOTAL columns in Tables 2-5.
+#' Only checks rows with bracketed (provisional) years. Warns on mismatches.
+#'
+#' @param detail The grandtab_detail list (10 elements)
+#' Check cross-table consistency and return indices of mismatched tables
+#'
+#' Returns a sorted integer vector of table indices (from 1-5) involved in
+#' mismatches. Empty integer(0) means everything is consistent.
+#'
+#' @param detail The grandtab_detail list (10 elements)
+#' @return Integer vector of table indices that have mismatches
+validate_cross_table <- function(detail) {
+  parse_num <- function(x) suppressWarnings(as.numeric(gsub(",", "", x)))
+
+  t1 <- detail[[1]][[2]]
+  t2 <- detail[[2]][[2]]
+  t3 <- detail[[3]][[2]]
+  t4 <- detail[[4]][[2]]
+  t5 <- detail[[5]][[2]]
+
+  extract_year <- function(x) str_extract(x, "\\d{4}$|\\d{4}(?=\\]$)")
+
+  t1_year <- extract_year(t1[["LATE-FALL_SPAWN_PERIOD"]])
+
+  checks <- list(
+    list(name = "LATE-FALL", t1_col = "LATE-FALL_TOTAL", detail_idx = 2L,
+         detail_tbl = t2, detail_col = "TOTAL LATE-FALL RUN",
+         detail_year = extract_year(t2[["LATE-FALL_SPAWN_PERIOD"]])),
+    list(name = "WINTER", t1_col = "WINTER_TOTAL", detail_idx = 3L,
+         detail_tbl = t3, detail_col = "TOTAL CENTRAL VALLEY SYSTEM",
+         detail_year = extract_year(t3[["WINTER_SPAWN_PERIOD"]])),
+    list(name = "SPRING", t1_col = "SPRING_TOTAL", detail_idx = 4L,
+         detail_tbl = t4, detail_col = "TOTAL SPRING RUN 7/",
+         detail_year = extract_year(t4[["YEAR"]])),
+    list(name = "FALL", t1_col = "FALL_TOTAL", detail_idx = 5L,
+         detail_tbl = t5, detail_col = "TOTAL...11",
+         detail_year = extract_year(t5[["YEAR"]]))
+  )
+
+  bad_indices <- integer(0)
+
+  for (chk in checks) {
+    bracketed <- startsWith(t1[["LATE-FALL_SPAWN_PERIOD"]], "[")
+    if (!any(bracketed)) next
+
+    t1_sub <- t1[bracketed, ]
+    t1_years <- extract_year(t1_sub[["LATE-FALL_SPAWN_PERIOD"]])
+    t1_vals <- parse_num(t1_sub[[chk$t1_col]])
+
+    detail_idx <- match(t1_years, chk$detail_year)
+    matched <- !is.na(detail_idx)
+
+    for (j in which(matched)) {
+      t1_val <- t1_vals[j]
+      d_val <- parse_num(chk$detail_tbl[[chk$detail_col]][detail_idx[j]])
+
+      if (is.na(t1_val) && is.na(d_val)) next
+      if (!identical(t1_val, d_val)) {
+        message("Cross-table mismatch [", chk$name, " ", t1_years[j], "]: ",
+                "T1 ", chk$t1_col, "=", t1_val,
+                " vs T", chk$detail_idx, " ", chk$detail_col, "=", d_val)
+        bad_indices <- c(bad_indices, 1L, chk$detail_idx)
+      }
+    }
+  }
+
+  sort(unique(bad_indices))
+}
+
 # -- Update baseline via Claude API ------------------------------------------
 
 #' Update baseline data by extracting new rows via Claude vision
@@ -149,7 +223,8 @@ update_baseline <- function(pdf_path, baseline, img_dir = "data-raw/pages") {
   all_pages <- sort(unique(unlist(page_map)))
   render_pages(pdf_path, all_pages, out_dir = img_dir)
 
-  updated <- map2(baseline, page_map, \(bl, pages) {
+  # Extract a single table's provisional rows via Claude API
+  extract_table <- function(bl, pages) {
     df <- bl[[2]]
     col_names <- names(df)
     year_col <- df[[1]]
@@ -315,7 +390,30 @@ Rules:
       mutate(confirmed_rows, across(everything(), as.character)),
       new_rows
     ))
-  })
+  }
+
+  # Initial extraction of all 10 tables
+  updated <- map2(baseline, page_map, extract_table)
+
+  # Cross-table consistency check with auto-correction
+  bad <- validate_cross_table(updated)
+
+  if (length(bad) > 0) {
+    message("Re-extracting tables ", paste(bad, collapse = ", "),
+            " to fix cross-table mismatches...")
+    for (idx in bad) {
+      updated[[idx]] <- extract_table(baseline[[idx]], page_map[[idx]])
+    }
+
+    bad2 <- validate_cross_table(updated)
+    if (length(bad2) > 0) {
+      warning("Cross-table mismatches persist for tables ",
+              paste(bad2, collapse = ", "),
+              " after re-extraction. These may reflect discrepancies in the source PDF.")
+    }
+  }
+
+  message("Cross-table validation complete")
 
   # Rebuild derived datasets from updated detail
   message("Rebuilding grandtab_sections and grandtab_summary...")

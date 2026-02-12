@@ -8,5 +8,8 @@
 # OS files
 .DS_Store
 
+# Rendered page images
+data-raw/pages/
+
 # Claude
 .claude/

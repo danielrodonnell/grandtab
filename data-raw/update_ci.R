@@ -18,17 +18,30 @@ pdf_path <- download_grandtab()
 # 2. Load baseline
 load("data/grandtab_detail.rda")
 
-# 3. Run update — capture cat() output to detect "up to date"
+# 3. Run update — capture cat() output and warnings
+warnings_log <- character(0)
 result <- capture.output(
-  updated <- update_baseline(pdf_path, grandtab_detail),
+  withCallingHandlers(
+    updated <- update_baseline(pdf_path, grandtab_detail),
+    warning = function(w) {
+      warnings_log <<- c(warnings_log, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  ),
   type = "output"
 )
+
+# 4. Write warnings to file for the workflow to pick up
+if (length(warnings_log) > 0) {
+  writeLines(warnings_log, "warnings.txt")
+  message("Warnings captured:\n", paste("  -", warnings_log, collapse = "\n"))
+}
 
 if (any(grepl("already up to date", result, ignore.case = TRUE))) {
   message("No update needed.")
   writeLines("UPDATE_NEEDED=false", Sys.getenv("GITHUB_OUTPUT"))
 } else {
-  # 4. Save updated detail (sections and summary already saved by update_baseline)
+  # 5. Save updated detail (sections and summary already saved by update_baseline)
   grandtab_detail <- updated
   save(grandtab_detail, file = "data/grandtab_detail.rda", compress = "xz")
   message("Saved updated grandtab_detail.rda")

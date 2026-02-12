@@ -41,6 +41,21 @@ jobs:
         run: |
           Rscript data-raw/update_ci.R
 
+      - name: Report warnings
+        if: always()
+        run: |
+          if [ -f warnings.txt ]; then
+            echo "## :warning: GrandTab Update Warnings" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r line; do
+              echo "- $line" >> "$GITHUB_STEP_SUMMARY"
+            done < warnings.txt
+          else
+            echo "## :white_check_mark: GrandTab Update" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No warnings." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Commit and push if updated
         if: steps.update.outputs.UPDATE_NEEDED == 'true'
         run: |
