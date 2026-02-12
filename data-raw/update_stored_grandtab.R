@@ -100,15 +100,21 @@ detect_page_map <- function(pdf_path, baseline) {
     warning("Expected ", length(baseline), " target pages, found ", length(target_pages))
   }
 
-  # For each target page, check if the preceding page also has bracketed data
+  # For each target page, check if adjacent pages also have bracketed data
   page_has_brackets <- function(pg) {
     if (pg < 1 || pg > length(all_data)) return(FALSE)
     any(startsWith(all_data[[pg]]$text, "["))
   }
 
   page_map <- lapply(target_pages, \(pg) {
-    if (pg > 1 && page_has_brackets(pg - 1)) {
+    prev <- pg > 1 && page_has_brackets(pg - 1)
+    next_ <- pg < length(all_data) && page_has_brackets(pg + 1)
+    if (prev && next_) {
+      c(pg - 1L, pg, pg + 1L)
+    } else if (prev) {
       c(pg - 1L, pg)
+    } else if (next_) {
+      c(pg, pg + 1L)
     } else {
       pg
     }
@@ -159,17 +165,18 @@ update_baseline <- function(pdf_path, baseline, img_dir = "data-raw/pages") {
       context_start <- max(1, context_end - 2)
       context_rows <- if (context_end >= 1) df[context_start:context_end, ] else df[0, ]
 
-      # Year range to extract: first bracketed year through any new years
+      # Year range to extract: first bracketed year through end of table
       first_bracket_year <- str_extract(year_col[first_bracket_idx], "\\d{4}")
-      last_year <- as.numeric(str_extract(tail(year_col, 1), "\\d{4}"))
-      year_range <- paste0(first_bracket_year, " through ",
-                           last_year + 1, " (or later if present)")
+      year_instruction <- paste0("starting from year ", first_bracket_year,
+                                 " through the very last row of the table")
     } else {
       # No bracketed years — fall back to extracting new rows only
       first_bracket_idx <- nrow(df) + 1
       context_rows <- tail(df, 3)
       last_year <- as.numeric(str_extract(tail(year_col, 1), "\\d{4}"))
-      year_range <- paste((last_year + 1):(last_year + 2), collapse = " and ")
+      year_instruction <- paste0("for years ",
+                                 paste((last_year + 1):(last_year + 2), collapse = " and "),
+                                 " through the very last row of the table")
     }
 
     context_csv <- context_rows |> format_csv()
@@ -188,7 +195,8 @@ update_baseline <- function(pdf_path, baseline, img_dir = "data-raw/pages") {
     if (length(pages) == 1) {
       image_note <- "Look at the table in this image."
     } else {
-      image_note <- "The table spans two pages shown in these images (in order)."
+      image_note <- paste0("The table spans ", length(pages),
+                           " pages shown in these images (in order).")
     }
 
     prompt <- sprintf("
@@ -198,60 +206,103 @@ I have an existing data frame with these exact columns:
 Here are the last few confirmed (non-provisional) rows for context:
 %s
 
-%s Extract ALL rows for years %s.
-These rows replace provisional data (shown in brackets like [2024]) and include
-any new data added to the table.
+%s Extract ALL rows %s.
+You MUST include every row from the starting year to the very end of the table —
+do not stop early.
 Return them as CSV with the exact column names above as the header row.
 The columns must align exactly to my existing structure.
 
 Rules:
 - Remove commas from numbers (e.g., 12,479 -> 12479)
 - Use NA for blank/empty cells
-- Preserve year format exactly as shown in the image (e.g., [2024] or [Nov 2023 - Apr 2024])
+- CRITICAL: Preserve the year/period format EXACTLY as printed in the image,
+  including square brackets. If the image shows [2024], return [2024] not 2024.
+  If it shows [Nov 2023 - Apr 2024], return [Nov 2023 - Apr 2024] not
+  Nov 2023 - Apr 2024. Brackets indicate provisional data and must be kept.
 - ALWAYS include rows even if every cell except YEAR is blank — fill non-YEAR
   columns with NA but still include the row
 - If a row has ONLY a year value and nothing else, still include it with NA
   for all other columns
 - No commentary, no markdown fences — just the CSV header + data rows
-", paste(col_names, collapse = ", "), context_csv, image_note, year_range)
+", paste(col_names, collapse = ", "), context_csv, image_note, year_instruction)
 
     # Build message content: image(s) first, then the text prompt
     msg_content <- c(img_content, list(list(type = "text", text = prompt)))
 
-    resp <- request("https://api.anthropic.com/v1/messages") |>
-      req_headers(
-        `x-api-key`         = Sys.getenv("ANTHROPIC_API_KEY"),
-        `anthropic-version`  = "2023-06-01",
-        `content-type`       = "application/json"
-      ) |>
-      req_body_json(list(
-        model      = MODEL,
-        max_tokens = 8192L,
-        messages   = list(list(
-          role    = "user",
-          content = msg_content
-        ))
-      )) |>
-      req_perform()
+    # Extract with validation and retry
+    extract_rows <- function(attempt = 1) {
+      resp <- request("https://api.anthropic.com/v1/messages") |>
+        req_headers(
+          `x-api-key`         = Sys.getenv("ANTHROPIC_API_KEY"),
+          `anthropic-version`  = "2023-06-01",
+          `content-type`       = "application/json"
+        ) |>
+        req_body_json(list(
+          model      = MODEL,
+          max_tokens = 8192L,
+          messages   = list(list(
+            role    = "user",
+            content = msg_content
+          ))
+        )) |>
+        req_perform()
 
-    csv_text <- resp_body_json(resp)$content[[1]]$text
+      csv_text <- resp_body_json(resp)$content[[1]]$text
 
-    new_rows <- tryCatch(
-      read_csv(I(csv_text), show_col_types = FALSE, na = "NA",
-               col_types = cols(.default = col_character())),
-      error = function(e) {
-        warning("Parse failed on pages ", paste(pages, collapse="-"), ": ", e$message)
-        return(NULL)
+      new_rows <- tryCatch(
+        read_csv(I(csv_text), show_col_types = FALSE, na = "NA",
+                 col_types = cols(.default = col_character())),
+        error = function(e) {
+          warning("Parse failed on pages ", paste(pages, collapse="-"),
+                  " (attempt ", attempt, "): ", e$message)
+          return(NULL)
+        }
+      )
+
+      if (is.null(new_rows)) return(NULL)
+
+      # Validation: check column names
+      if (!identical(names(new_rows), col_names)) {
+        warning("Column mismatch on pages ", paste(pages, collapse="-"),
+                " (attempt ", attempt, "):\n  Expected: ",
+                paste(col_names, collapse = ", "),
+                "\n  Got: ", paste(names(new_rows), collapse = ", "))
       }
-    )
 
-    if (is.null(new_rows)) return(bl)
+      # Validation: extracted rows should have at least as many rows as
+      # the existing bracketed rows (we're replacing them + possibly adding new)
+      if (any(bracketed) && nrow(new_rows) < sum(bracketed)) {
+        if (attempt < 2) {
+          warning("Pages ", paste(pages, collapse="-"), ": extracted ",
+                  nrow(new_rows), " rows but expected at least ", sum(bracketed),
+                  ". Retrying...")
+          Sys.sleep(API_DELAY)
+          return(extract_rows(attempt + 1))
+        } else {
+          warning("Pages ", paste(pages, collapse="-"), ": extracted ",
+                  nrow(new_rows), " rows but expected at least ", sum(bracketed),
+                  " after ", attempt, " attempts.")
+        }
+      }
 
-    if (!identical(names(new_rows), col_names)) {
-      warning("Column mismatch on pages ", paste(pages, collapse="-"),
-              ":\n  Expected: ", paste(col_names, collapse = ", "),
-              "\n  Got: ", paste(names(new_rows), collapse = ", "))
+      # Validation: if original had brackets, extracted rows should too
+      if (any(bracketed) && !any(startsWith(new_rows[[1]], "["))) {
+        if (attempt < 2) {
+          warning("Pages ", paste(pages, collapse="-"),
+                  ": no bracketed years in extraction — brackets may have been dropped. Retrying...")
+          Sys.sleep(API_DELAY)
+          return(extract_rows(attempt + 1))
+        } else {
+          warning("Pages ", paste(pages, collapse="-"),
+                  ": brackets still missing after ", attempt, " attempts.")
+        }
+      }
+
+      new_rows
     }
+
+    new_rows <- extract_rows()
+    if (is.null(new_rows)) return(bl)
 
     # Keep confirmed rows (before bracketed years) and replace with fresh extraction
     confirmed_rows <- df[seq_len(first_bracket_idx - 1), ]
