@@ -151,31 +151,31 @@ validate_cross_table <- function(detail) {
 
   extract_year <- function(x) str_extract(x, "\\d{4}$|\\d{4}(?=\\]$)")
 
-  t1_year <- extract_year(t1[["LATE-FALL_SPAWN_PERIOD"]])
+  t1_year <- extract_year(t1[["Late-Fall YEAR"]])
 
   checks <- list(
-    list(name = "LATE-FALL", t1_col = "LATE-FALL_TOTAL", detail_idx = 2L,
+    list(name = "LATE-FALL", t1_col = "Late-Fall TOTAL", detail_idx = 2L,
          detail_tbl = t2, detail_col = "TOTAL LATE-FALL RUN",
-         detail_year = extract_year(t2[["LATE-FALL_SPAWN_PERIOD"]])),
-    list(name = "WINTER", t1_col = "WINTER_TOTAL", detail_idx = 3L,
-         detail_tbl = t3, detail_col = "TOTAL CENTRAL VALLEY SYSTEM",
-         detail_year = extract_year(t3[["WINTER_SPAWN_PERIOD"]])),
-    list(name = "SPRING", t1_col = "SPRING_TOTAL", detail_idx = 4L,
-         detail_tbl = t4, detail_col = "TOTAL SPRING RUN 7/",
+         detail_year = extract_year(t2[["Late-Fall YEAR"]])),
+    list(name = "WINTER", t1_col = "Winter TOTAL", detail_idx = 3L,
+         detail_tbl = t3, detail_col = "WINTER TOTAL CV SYSTEM",
+         detail_year = extract_year(t3[["Winter YEAR"]])),
+    list(name = "SPRING", t1_col = "Spring TOTAL", detail_idx = 4L,
+         detail_tbl = t4, detail_col = "TOTAL SPRING RUN",
          detail_year = extract_year(t4[["YEAR"]])),
-    list(name = "FALL", t1_col = "FALL_TOTAL", detail_idx = 5L,
-         detail_tbl = t5, detail_col = "TOTAL...11",
+    list(name = "FALL", t1_col = "Fall TOTAL", detail_idx = 5L,
+         detail_tbl = t5, detail_col = "Sac SJ System TOTAL",
          detail_year = extract_year(t5[["YEAR"]]))
   )
 
   bad_indices <- integer(0)
 
   for (chk in checks) {
-    bracketed <- startsWith(t1[["LATE-FALL_SPAWN_PERIOD"]], "[")
+    bracketed <- startsWith(t1[["Late-Fall YEAR"]], "[")
     if (!any(bracketed)) next
 
     t1_sub <- t1[bracketed, ]
-    t1_years <- extract_year(t1_sub[["LATE-FALL_SPAWN_PERIOD"]])
+    t1_years <- extract_year(t1_sub[["Late-Fall YEAR"]])
     t1_vals <- parse_num(t1_sub[[chk$t1_col]])
 
     detail_idx <- match(t1_years, chk$detail_year)
@@ -461,41 +461,33 @@ build_summary <- function(detail) {
 
   late_fall <- tibble(
     run        = "LATE-FALL",
-    YEAR       = all_runs[["LATE-FALL_SPAWN_PERIOD"]],
-    Hatcheries = parse_numeric(all_runs[["LATE-FALL_Hatcheries"]]),
-    `In-River` = parse_numeric(all_runs[["LATE-FALL_In-River"]]),
-    TOTAL      = parse_numeric(all_runs[["LATE-FALL_TOTAL"]])
+    YEAR       = all_runs[["Late-Fall YEAR"]],
+    Hatcheries = parse_numeric(all_runs[["Late-Fall Hatch"]]),
+    `In-River` = parse_numeric(all_runs[["Late-Fall In-R"]]),
+    TOTAL      = parse_numeric(all_runs[["Late-Fall TOTAL"]])
   )
 
   winter <- tibble(
     run   = "WINTER",
-    YEAR  = all_runs[["WINTER_SPAWN_PERIOD"]],
-    TOTAL = parse_numeric(all_runs[["WINTER_TOTAL"]]),
-    RBDD  = parse_numeric(all_runs[["WINTER_RBDD"]])
-  )
-
-  # SPRING and FALL YEAR = end year from LATE-FALL spawn period, preserving brackets
-  sp <- all_runs[["LATE-FALL_SPAWN_PERIOD"]]
-  plain_year <- ifelse(
-    startsWith(sp, "["),
-    paste0("[", str_extract(sp, "[0-9]{4}(?=\\]$)"), "]"),
-    str_extract(sp, "[0-9]{4}$")
+    YEAR  = all_runs[["Winter YEAR"]],
+    TOTAL = parse_numeric(all_runs[["Winter TOTAL"]]),
+    RBDD  = parse_numeric(all_runs[["Winter RBDD"]])
   )
 
   spring <- tibble(
     run        = "SPRING",
-    YEAR       = plain_year,
-    Hatcheries = parse_numeric(all_runs[["SPRING_Hatcheries"]]),
-    `In-River` = parse_numeric(all_runs[["SPRING_In-River"]]),
-    TOTAL      = parse_numeric(all_runs[["SPRING_TOTAL"]])
+    YEAR       = all_runs[["YEAR"]],
+    Hatcheries = parse_numeric(all_runs[["Spring Hatch"]]),
+    `In-River` = parse_numeric(all_runs[["Spring In-R"]]),
+    TOTAL      = parse_numeric(all_runs[["Spring TOTAL"]])
   )
 
   fall <- tibble(
     run        = "FALL",
-    YEAR       = plain_year,
-    Hatcheries = parse_numeric(all_runs[["FALL_Hatcheries"]]),
-    `In-River` = parse_numeric(all_runs[["FALL_In-River"]]),
-    TOTAL      = parse_numeric(all_runs[["FALL_TOTAL"]])
+    YEAR       = all_runs[["YEAR"]],
+    Hatcheries = parse_numeric(all_runs[["Fall Hatch"]]),
+    `In-River` = parse_numeric(all_runs[["Fall In-R"]]),
+    TOTAL      = parse_numeric(all_runs[["Fall TOTAL"]])
   )
 
   list(
