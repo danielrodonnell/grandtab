@@ -589,6 +589,38 @@
   result
 }
 
+# -- Provisional data handling ------------------------------------------------
+
+.finalize <- function(tbl) {
+  sp_cols <- grep("_spawn_period$", names(tbl), value = TRUE)
+  check_cols <- intersect(c("run_year", sp_cols), names(tbl))
+
+  provisional <- rep(0L, nrow(tbl))
+  for (col in check_cols) {
+    vals <- tbl[[col]]
+    is_prov <- !is.na(vals) & startsWith(vals, "[")
+    provisional <- pmax(provisional, as.integer(is_prov))
+  }
+
+  for (col in check_cols) {
+    tbl[[col]] <- gsub("^\\[|\\]$", "", tbl[[col]])
+  }
+
+  tbl$provisional_data <- provisional
+  tbl
+}
+
+.finalize_output <- function(result) {
+  if (is.null(result)) return(invisible(NULL))
+  if (is.data.frame(result)) return(.finalize(result))
+  if (is.list(result)) {
+    return(lapply(result, function(x) {
+      if (is.data.frame(x)) .finalize(x) else x
+    }))
+  }
+  result
+}
+
 # -- Routing handlers ---------------------------------------------------------
 
 .route_single_run <- function(run_abbrev, rs, loc, summary) {
@@ -878,16 +910,18 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
 
   # -- Route ------------------------------------------------------------------
 
-  if (!is.null(run_norm) && length(run_norm) == 1) {
+  result <- if (!is.null(run_norm) && length(run_norm) == 1) {
     if (run_norm == "all")
-      return(.route_all_runs(rs_norm, loc_norm, summary, section))
-    if (run_norm == "f")
-      return(.route_fall(rs_norm, loc_norm, summary, section))
-    return(.route_single_run(run_norm, rs_norm, loc_norm, summary))
+      .route_all_runs(rs_norm, loc_norm, summary, section)
+    else if (run_norm == "f")
+      .route_fall(rs_norm, loc_norm, summary, section)
+    else
+      .route_single_run(run_norm, rs_norm, loc_norm, summary)
+  } else if (!is.null(run_norm) && length(run_norm) > 1) {
+    .route_multi_run(run_norm, rs_norm, loc_norm, summary, section)
+  } else {
+    .route_null_run(rs_norm, loc_norm, summary, section)
   }
 
-  if (!is.null(run_norm) && length(run_norm) > 1)
-    return(.route_multi_run(run_norm, rs_norm, loc_norm, summary, section))
-
-  .route_null_run(rs_norm, loc_norm, summary, section)
+  .finalize_output(result)
 }
