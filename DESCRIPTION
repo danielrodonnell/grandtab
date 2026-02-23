@@ -36,7 +36,6 @@ Collate:
     'get_grandtab_info.R'
     'get_grandtab_raw.R'
     'get_winter_extras.R'
-    'grandtab.R'
     'map_grandtab.R'
     'utils.R'
     'zzz.R'

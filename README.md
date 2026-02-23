@@ -109,11 +109,6 @@ map_grandtab(river_system = "sacramento", base_map = "Esri.WorldImagery")
 ```r
 # Named list of 11 tables with original GrandTab headers
 grandtab_detail
-
-# Lookup a table by number or keyword
-grandtab(3)
-grandtab("winter")
-grandtab("section 2")
 ```
 
 ## Data
