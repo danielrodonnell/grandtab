@@ -13,3 +13,8 @@ data-raw/pages/
 
 # Claude
 .claude/
+
+# R build artifacts
+*.tar.gz
+*.Rcheck/
+.Rapp.history

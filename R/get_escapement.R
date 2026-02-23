@@ -14,157 +14,160 @@
 
 .col_maps <- list(
   `2` = c(
-    "Late-Fall YEAR"                = "spawn_period",
-    "Sac Main Up RBDD In-R"        = "sac_main_up_rbdd_inr",
-    "Sac Main Up RBDD trans CNFH"  = "sac_main_up_rbdd_trans_cnfh",
-    "Sac Main Up RBDD TOTAL"       = "sac_main_up_rbdd_total",
-    "Sac Main Dwn RBDD trans TCFF" = "sac_main_dwn_rbdd_trans_tcff",
-    "Sac Main Dwn RBDD In-R"       = "sac_main_dwn_rbdd_inr",
-    "Sac Main Dwn RBDD TOTAL"      = "sac_main_dwn_rbdd_total",
-    "Battle Up CNFH In-R"          = "battle_up_cnfh_inr",
-    "Battle CNFH"                   = "battle_cnfh",
-    "Battle TOTAL"                  = "battle_total",
-    "Clear Ck"                      = "clear",
-    "Cottonwood Ck"                 = "cottonwood",
-    "Salt Ck"                       = "salt",
-    "Craig Ck"                      = "craig",
-    "Feather In-R"                  = "feather_inr",
-    "Feather Hatch"                 = "feather_hatch",
-    "TOTAL LATE-FALL RUN"           = "total"
+    "Late-Fall YEAR"                       = "spawn_period",
+    "Sac Main Up RBDD1/ In-R 2/"          = "sac_main_up_rbdd_inr",
+    "Sac Main Up RBDD trans CNFH 3/"      = "sac_main_up_rbdd_trans_cnfh",
+    "Sac Main Up RBDD TOTAL"               = "sac_main_up_rbdd_total",
+    "Sac Main Dwn RBDD trans TCFF 4/"     = "sac_main_dwn_rbdd_trans_tcff",
+    "Sac Main Dwn RBDD In-R 2/"           = "sac_main_dwn_rbdd_inr",
+    "Sac Main Dwn RBDD TOTAL"              = "sac_main_dwn_rbdd_total",
+    "Battle5/ Up CNFH In-R"               = "battle_up_cnfh_inr",
+    "Battle CNFH"                           = "battle_cnfh",
+    "Battle TOTAL"                          = "battle_total",
+    "Clear Ck"                              = "clear",
+    "Cottonwood Ck"                         = "cottonwood",
+    "Salt Ck"                               = "salt",
+    "Craig Ck"                              = "craig",
+    "Feather In-R"                          = "feather_inr",
+    "Feather Hatch"                         = "feather_hatch",
+    "TOTAL LATE-FALL RUN"                   = "total"
   ),
   `3` = c(
-    "Winter YEAR"              = "spawn_period",
-    "Sac Main Up RBDD In-R"    = "sac_main_up_rbdd",
-    "Sac Main Dwn RBDD In-R"   = "sac_main_dwn_rbdd",
-    "Sac Main TOTAL In-R"      = "sac_main_total_inr",
-    "Sac Main trans CNFH"      = "sac_main_trans_cnfh",
-    "Sac Main trans LSNFH"     = "sac_main_trans_lsnfh",
-    "Clear Ck"                 = "clear",
-    "Battle Ck"                = "battle",
-    "WINTER TOTAL SAC SYSTEM"  = "sac_sys_total",
-    "SJ Calaveras R"           = "calaveras",
-    "WINTER TOTAL CV SYSTEM"   = "cv_sys_total",
-    "Fish Passing RBDD"        = "fish_passing_rbdd",
-    "Angler Harvest"           = "angler_harvest",
-    "Redd Dist Up RBDD"        = "redd_dist_up_rbdd",
-    "Redd Dist Dwn RBDD"       = "redd_dist_dwn_rbdd"
+    "Winter YEAR"                  = "spawn_period",
+    "Sac Main Up RBDD In-R 2/"     = "sac_main_up_rbdd",
+    "Sac Main Dwn RBDD In-R 3/"   = "sac_main_dwn_rbdd",
+    "Sac Main TOTAL In-R"          = "sac_main_total_inr",
+    "Sac Main trans1/ CNFH"       = "sac_main_trans_cnfh",
+    "Sac Main trans1/ LSNFH"      = "sac_main_trans_lsnfh",
+    "Clear Ck 4/"                  = "clear",
+    "Battle Ck 5/"                 = "battle",
+    "WINTER TOTAL SAC SYSTEM 6/"  = "sac_sys_total",
+    "SJ Calaveras R 7/"           = "calaveras",
+    "WINTER TOTAL CV SYSTEM"       = "cv_sys_total"
   ),
   `4` = c(
-    "YEAR"                    = "run_year",
-    "Sac Main Up RBDD In-R"  = "sac_main_up_rbdd",
-    "Sac Main Dwn RBDD In-R" = "sac_main_dwn_rbdd",
-    "Sac Main In-R TOTAL"    = "sac_main_total_inr",
-    "Battle Ck"               = "battle",
-    "Clear Ck"                = "clear",
-    "Cottonwood Ck"           = "cottonwood",
-    "Antelope Ck"             = "antelope",
-    "Mill Ck"                 = "mill",
-    "Mill Ck Spawn"           = "mill_spwn_snrkl",
-    "Deer Ck"                 = "deer",
-    "Deer Ck Spawn"           = "deer_spwn_snrkl",
-    "Big Chico Ck"            = "big_chico",
-    "Butte Ck"                = "butte",
-    "Butte Ck Spawn"          = "butte_spwn_snrkl",
-    "Feather In-R"            = "feather_inr",
-    "Feather Hatch"           = "feather_hatch",
-    "Feather TOTAL"           = "feather_total",
-    "Yuba R"                  = "yuba",
-    "TOTAL SPRING RUN"        = "total"
+    "Winter YEAR"              = "spawn_period",
+    "Fish Passing RBDD 1/3/"   = "fish_passing_rbdd",
+    "Angler Harvest 1/4/"      = "angler_harvest",
+    "Redd Dist2/ Up RBDD"      = "redd_dist_up_rbdd",
+    "Redd Dist2/ Dwn RBDD"     = "redd_dist_dwn_rbdd"
   ),
   `5` = c(
-    "YEAR"                  = "run_year",
-    "Sac System Hatch"      = "sac_sys_hatch",
-    "Sac System In-R"       = "sac_sys_inr",
-    "Sac System Tribs In-R" = "sac_sys_tribs_inr",
-    "Sac System TOTAL"      = "sac_sys_total",
-    "SJ System Hatch"       = "sj_sys_hatch",
-    "SJ System Tribs In-R"  = "sj_sys_tribs_inr",
-    "SJ System TOTAL"       = "sj_sys_total",
-    "Sac SJ System Hatch"   = "sac_sj_sys_hatch",
-    "Sac SJ System In-R"    = "sac_sj_sys_inr",
-    "Sac SJ System TOTAL"   = "sac_sj_sys_total"
+    "YEAR"                         = "run_year",
+    "Sac Main Up RBDD1/ In-R"    = "sac_main_up_rbdd",
+    "Sac Main Dwn RBDD In-R"      = "sac_main_dwn_rbdd",
+    "Sac Main In-R TOTAL"          = "sac_main_total_inr",
+    "Battle Ck 4/"                 = "battle",
+    "Clear Ck"                      = "clear",
+    "Cottonwood Ck"                 = "cottonwood",
+    "Antelope Ck"                   = "antelope",
+    "Mill Ck"                       = "mill",
+    "Mill Ck Spawn 5/"             = "mill_spwn_snrkl",
+    "Deer Ck"                       = "deer",
+    "Deer Ck Spawn 5/"             = "deer_spwn_snrkl",
+    "Big Chico Ck"                  = "big_chico",
+    "Butte Ck 6/"                   = "butte",
+    "Butte Ck Spawn 5/"            = "butte_spwn_snrkl",
+    "Feather In-R 2/"              = "feather_inr",
+    "Feather Hatch 3/"             = "feather_hatch",
+    "Feather TOTAL"                 = "feather_total",
+    "Yuba R"                        = "yuba",
+    "TOTAL SPRING RUN 7/"          = "total"
   ),
   `6` = c(
-    "YEAR"                             = "run_year",
-    "Kesw_RBDD CNFH"                   = "kesw_rbdd_cnfh",
-    "Kesw_RBDD Main In-R"              = "kesw_rbdd_main_inr",
-    "Kesw_RBDD Tribs In-R"             = "kesw_rbdd_tribs_inr",
-    "Kesw_RBDD TOTAL"                  = "kesw_rbdd_total",
-    "RBDD_PFerry TCFF"                 = "rbdd_pferry_tcff",
-    "RBDD_PFerry Main In-R"            = "rbdd_pferry_main_inr",
-    "RBDD_PFerry Tribs In-R"           = "rbdd_pferry_tribs_inr",
-    "RBDD_PFerry TOTAL"                = "rbdd_pferry_total",
-    "PFerry_Sacr Feather_Nimbus Hatch" = "pferry_sacr_feather_nimbus_hatch",
-    "PFerry_Sacr Tribs In-R"           = "pferry_sacr_tribs_inr",
-    "PFerry_Sacr TOTAL"                = "pferry_sacr_total"
+    "YEAR"                          = "run_year",
+    "Sac System Hatch 1/"          = "sac_sys_hatch",
+    "Sac System In-R"               = "sac_sys_inr",
+    "Sac System Tribs In-R"         = "sac_sys_tribs_inr",
+    "Sac System TOTAL"              = "sac_sys_total",
+    "SJ System Hatch 2/"           = "sj_sys_hatch",
+    "SJ System Tribs In-R"          = "sj_sys_tribs_inr",
+    "SJ System TOTAL"               = "sj_sys_total",
+    "Sac SJ System Hatch"           = "sac_sj_sys_hatch",
+    "Sac SJ System In-R"            = "sac_sj_sys_inr",
+    "Sac SJ System TOTAL"           = "sac_sj_sys_total"
   ),
   `7` = c(
-    "YEAR"                 = "run_year",
-    "Sac Main In-R"        = "sac_main_inr",
-    "Sac Main trans CNFH"  = "sac_main_trans_cnfh",
-    "Sac Main TOTAL"       = "sac_main_total",
-    "Battle CNFH"          = "battle_cnfh",
-    "Battle Dwn CNFH In-R" = "battle_dwn_cnfh_inr",
-    "Battle Up CNFH In-R"  = "battle_up_cnfh_inr",
-    "Battle TOTAL"         = "battle_total",
-    "Clear Ck"             = "clear",
-    "Spring Gulch"         = "spring_gulch",
-    "China Gulch"          = "china_gulch",
-    "Olney Ck"             = "olney",
-    "Cottonwood Ck"        = "cottonwood",
-    "Paynes Ck"            = "paynes",
-    "Cow Ck"               = "cow",
-    "Bear Ck"              = "bear",
-    "Ash Ck"               = "ash",
-    "Stillwater Ck"        = "stillwater",
-    "Inks Ck"              = "inks",
-    "Other"                = "other"
+    "YEAR"                                  = "run_year",
+    "Kesw_RBDD CNFH"                        = "kesw_rbdd_cnfh",
+    "Kesw_RBDD Main In-R"                   = "kesw_rbdd_main_inr",
+    "Kesw_RBDD Tribs In-R"                  = "kesw_rbdd_tribs_inr",
+    "Kesw_RBDD TOTAL"                       = "kesw_rbdd_total",
+    "RBDD_PFerry TCFF"                      = "rbdd_pferry_tcff",
+    "RBDD_PFerry Main In-R"                 = "rbdd_pferry_main_inr",
+    "RBDD_PFerry Tribs In-R 1/"            = "rbdd_pferry_tribs_inr",
+    "RBDD_PFerry TOTAL"                     = "rbdd_pferry_total",
+    "PFerry_Sacr Feather_Nimbus Hatch"      = "feather_nimbus_hatch",
+    "PFerry_Sacr Tribs In-R"                = "pferry_sac_tribs_inr",
+    "PFerry_Sacr TOTAL"                     = "pferry_sac_total"
   ),
   `8` = c(
-    "YEAR"                = "run_year",
-    "Sac Main In-R"       = "sac_main_inr",
-    "Sac Main trans TCFF" = "sac_main_trans_tcff",
-    "Sac Main TOTAL"      = "sac_main_total",
-    "TCFF"                = "tcff",
-    "Salt Ck"             = "salt",
-    "Antelope Ck"         = "antelope",
-    "Craig Ck"            = "craig",
-    "Dye Ck"              = "dye",
-    "Mill Ck"             = "mill",
-    "Toomes Ck"           = "toomes",
-    "Thomes Ck"           = "thomes",
-    "Deer Ck"             = "deer",
-    "Coyote Ck"           = "coyote",
-    "Stoney Ck"           = "stoney",
-    "Singer Ck"           = "singer",
-    "Big Chico Ck"        = "big_chico",
-    "Other"               = "other"
+    "YEAR"                      = "run_year",
+    "Sac Main In-R 1/"         = "sac_main_inr",
+    "Sac Main trans CNFH 2/"   = "sac_main_trans_cnfh",
+    "Sac Main TOTAL"            = "sac_main_total",
+    "Battle5/ CNFH"             = "battle_cnfh",
+    "Battle Dwn CNFH In-R"      = "battle_dwn_cnfh_inr",
+    "Battle Up CNFH In-R 3/"   = "battle_up_cnfh_inr",
+    "Battle TOTAL"               = "battle_total",
+    "Clear Ck"                   = "clear",
+    "Spring Gulch"               = "spring_gulch",
+    "China Gulch"                = "china_gulch",
+    "Olney Ck"                   = "olney",
+    "Cottonwood Ck"              = "cottonwood",
+    "Paynes Ck"                  = "paynes",
+    "Cow Ck"                     = "cow",
+    "Bear Ck"                    = "bear_ck",
+    "Ash Ck"                     = "ash",
+    "Stillwater Ck"              = "stillwater",
+    "Inks Ck"                    = "inks",
+    "Other 4/"                   = "other"
   ),
   `9` = c(
-    "YEAR"                  = "run_year",
-    "Butte Ck"              = "butte",
-    "Feather Hatch"         = "feather_hatch",
-    "Feather In-R"          = "feather_inr",
-    "Feather TOTAL"         = "feather_total",
-    "Yuba R"                = "yuba",
-    "Bear R"                = "bear",
-    "Dry Ck"                = "dry",
-    "American Nimbus Hatch" = "american_nimbus_hatch",
-    "American In-R"         = "american_inr",
-    "American TOTAL"        = "american_total",
-    "Natomas Drain"         = "natomas_drain"
+    "YEAR"                     = "run_year",
+    "Sac Main In-R 1/"        = "sac_main_inr",
+    "Sac Main trans TCFF 2/"  = "sac_main_trans_tcff",
+    "Sac Main TOTAL"           = "sac_main_total",
+    "TCFF"                     = "tcff",
+    "Salt Ck"                  = "salt",
+    "Antelope Ck"              = "antelope",
+    "Craig Ck"                 = "craig",
+    "Dye Ck"                   = "dye",
+    "Mill Ck"                  = "mill",
+    "Toomes Ck"                = "toomes",
+    "Thomes Ck"                = "thomes",
+    "Deer Ck"                  = "deer",
+    "Coyote Ck"                = "coyote",
+    "Stoney Ck"                = "stoney",
+    "Singer Ck"                = "singer",
+    "Big Chico Ck"             = "big_chico",
+    "Other 3/"                 = "other"
   ),
   `10` = c(
-    "YEAR"             = "run_year",
-    "Cosumnes R"       = "cosumnes",
-    "Mokelumne Hatch"  = "mokelumne_hatch",
-    "Mokelumne In-R"   = "mokelumne_inr",
-    "Mokelumne TOTAL"  = "mokelumne_total",
-    "Stanislaus R"     = "stanislaus",
-    "Tuolumne R"       = "tuolumne",
-    "Merced Hatch"     = "merced_hatch",
-    "Merced In-R"      = "merced_inr",
-    "Merced TOTAL"     = "merced_total"
+    "YEAR"                       = "run_year",
+    "Butte Ck 1/"                = "butte",
+    "Feather Hatch"               = "feather_hatch",
+    "Feather In-R 2/"            = "feather_inr",
+    "Feather TOTAL"               = "feather_total",
+    "Yuba R 3/"                   = "yuba",
+    "Bear R"                      = "bear_r",
+    "Dry Ck"                      = "dry",
+    "American Nimbus Hatch"       = "american_nimbus_hatch",
+    "American In-R 4/5/"         = "american_inr",
+    "American TOTAL"              = "american_total",
+    "Natomas Drain"               = "natomas_drain"
+  ),
+  `11` = c(
+    "YEAR"              = "run_year",
+    "Cosumnes R"        = "cosumnes",
+    "Mokelumne Hatch"   = "mokelumne_hatch",
+    "Mokelumne In-R"    = "mokelumne_inr",
+    "Mokelumne TOTAL"   = "mokelumne_total",
+    "Stanislaus R"      = "stanislaus",
+    "Tuolumne R"        = "tuolumne",
+    "Merced Hatch 1/"   = "merced_hatch",
+    "Merced In-R"       = "merced_inr",
+    "Merced TOTAL"      = "merced_total"
   )
 )
 
@@ -198,97 +201,97 @@
 # -- Location -> table/column mapping -----------------------------------------
 .location_cols <- list(
   sac_main = list(
-    `2` = c("Sac Main Up RBDD In-R", "Sac Main Up RBDD trans CNFH",
-            "Sac Main Up RBDD TOTAL", "Sac Main Dwn RBDD trans TCFF",
-            "Sac Main Dwn RBDD In-R", "Sac Main Dwn RBDD TOTAL"),
-    `3` = c("Sac Main Up RBDD In-R", "Sac Main Dwn RBDD In-R",
-            "Sac Main TOTAL In-R", "Sac Main trans CNFH",
-            "Sac Main trans LSNFH"),
-    `4` = c("Sac Main Up RBDD In-R", "Sac Main Dwn RBDD In-R",
+    `2` = c("Sac Main Up RBDD1/ In-R 2/", "Sac Main Up RBDD trans CNFH 3/",
+            "Sac Main Up RBDD TOTAL", "Sac Main Dwn RBDD trans TCFF 4/",
+            "Sac Main Dwn RBDD In-R 2/", "Sac Main Dwn RBDD TOTAL"),
+    `3` = c("Sac Main Up RBDD In-R 2/", "Sac Main Dwn RBDD In-R 3/",
+            "Sac Main TOTAL In-R", "Sac Main trans1/ CNFH",
+            "Sac Main trans1/ LSNFH"),
+    `5` = c("Sac Main Up RBDD1/ In-R", "Sac Main Dwn RBDD In-R",
             "Sac Main In-R TOTAL"),
-    `7` = c("Sac Main In-R", "Sac Main trans CNFH", "Sac Main TOTAL"),
-    `8` = c("Sac Main In-R", "Sac Main trans TCFF", "Sac Main TOTAL")
+    `8` = c("Sac Main In-R 1/", "Sac Main trans CNFH 2/", "Sac Main TOTAL"),
+    `9` = c("Sac Main In-R 1/", "Sac Main trans TCFF 2/", "Sac Main TOTAL")
   ),
   battle = list(
-    `2` = c("Battle Up CNFH In-R", "Battle CNFH", "Battle TOTAL"),
-    `3` = c("Battle Ck"),
-    `4` = c("Battle Ck"),
-    `7` = c("Battle CNFH", "Battle Dwn CNFH In-R", "Battle Up CNFH In-R",
+    `2` = c("Battle5/ Up CNFH In-R", "Battle CNFH", "Battle TOTAL"),
+    `3` = c("Battle Ck 5/"),
+    `5` = c("Battle Ck 4/"),
+    `8` = c("Battle5/ CNFH", "Battle Dwn CNFH In-R", "Battle Up CNFH In-R 3/",
             "Battle TOTAL")
   ),
   clear = list(
-    `2` = c("Clear Ck"), `3` = c("Clear Ck"),
-    `4` = c("Clear Ck"), `7` = c("Clear Ck")
+    `2` = c("Clear Ck"), `3` = c("Clear Ck 4/"),
+    `5` = c("Clear Ck"), `8` = c("Clear Ck")
   ),
   cottonwood = list(
-    `2` = c("Cottonwood Ck"), `4` = c("Cottonwood Ck"),
-    `7` = c("Cottonwood Ck")
+    `2` = c("Cottonwood Ck"), `5` = c("Cottonwood Ck"),
+    `8` = c("Cottonwood Ck")
   ),
-  salt       = list(`2` = c("Salt Ck"), `8` = c("Salt Ck")),
-  craig      = list(`2` = c("Craig Ck"), `8` = c("Craig Ck")),
+  salt       = list(`2` = c("Salt Ck"), `9` = c("Salt Ck")),
+  craig      = list(`2` = c("Craig Ck"), `9` = c("Craig Ck")),
   feather = list(
     `2` = c("Feather In-R", "Feather Hatch"),
-    `4` = c("Feather In-R", "Feather Hatch", "Feather TOTAL"),
-    `9` = c("Feather Hatch", "Feather In-R", "Feather TOTAL")
+    `5` = c("Feather In-R 2/", "Feather Hatch 3/", "Feather TOTAL"),
+    `10` = c("Feather Hatch", "Feather In-R 2/", "Feather TOTAL")
   ),
-  antelope   = list(`4` = c("Antelope Ck"), `8` = c("Antelope Ck")),
+  antelope   = list(`5` = c("Antelope Ck"), `9` = c("Antelope Ck")),
   mill = list(
-    `4` = c("Mill Ck", "Mill Ck Spawn"), `8` = c("Mill Ck")
+    `5` = c("Mill Ck", "Mill Ck Spawn 5/"), `9` = c("Mill Ck")
   ),
   deer = list(
-    `4` = c("Deer Ck", "Deer Ck Spawn"), `8` = c("Deer Ck")
+    `5` = c("Deer Ck", "Deer Ck Spawn 5/"), `9` = c("Deer Ck")
   ),
-  big_chico  = list(`4` = c("Big Chico Ck"), `8` = c("Big Chico Ck")),
+  big_chico  = list(`5` = c("Big Chico Ck"), `9` = c("Big Chico Ck")),
   butte = list(
-    `4` = c("Butte Ck", "Butte Ck Spawn"), `9` = c("Butte Ck")
+    `5` = c("Butte Ck 6/", "Butte Ck Spawn 5/"), `10` = c("Butte Ck 1/")
   ),
-  yuba       = list(`4` = c("Yuba R"), `9` = c("Yuba R")),
-  american   = list(`9` = c("American Nimbus Hatch", "American In-R",
-                             "American TOTAL")),
-  bear_r     = list(`9` = c("Bear R")),
-  bear_ck    = list(`7` = c("Bear Ck")),
-  dry        = list(`9` = c("Dry Ck")),
-  natomas    = list(`9` = c("Natomas Drain")),
-  cosumnes   = list(`10` = c("Cosumnes R")),
-  mokelumne  = list(`10` = c("Mokelumne Hatch", "Mokelumne In-R",
+  yuba       = list(`5` = c("Yuba R"), `10` = c("Yuba R 3/")),
+  american   = list(`10` = c("American Nimbus Hatch", "American In-R 4/5/",
+                              "American TOTAL")),
+  bear_r     = list(`10` = c("Bear R")),
+  bear_ck    = list(`8` = c("Bear Ck")),
+  dry        = list(`10` = c("Dry Ck")),
+  natomas    = list(`10` = c("Natomas Drain")),
+  cosumnes   = list(`11` = c("Cosumnes R")),
+  mokelumne  = list(`11` = c("Mokelumne Hatch", "Mokelumne In-R",
                               "Mokelumne TOTAL")),
-  stanislaus = list(`10` = c("Stanislaus R")),
-  tuolumne   = list(`10` = c("Tuolumne R")),
-  merced     = list(`10` = c("Merced Hatch", "Merced In-R", "Merced TOTAL")),
-  calaveras  = list(`3` = c("SJ Calaveras R")),
-  spring_gulch = list(`7` = c("Spring Gulch")),
-  china_gulch  = list(`7` = c("China Gulch")),
-  olney      = list(`7` = c("Olney Ck")),
-  paynes     = list(`7` = c("Paynes Ck")),
-  cow        = list(`7` = c("Cow Ck")),
-  ash        = list(`7` = c("Ash Ck")),
-  stillwater = list(`7` = c("Stillwater Ck")),
-  inks       = list(`7` = c("Inks Ck")),
-  dye        = list(`8` = c("Dye Ck")),
-  toomes     = list(`8` = c("Toomes Ck")),
-  thomes     = list(`8` = c("Thomes Ck")),
-  coyote     = list(`8` = c("Coyote Ck")),
-  stoney     = list(`8` = c("Stoney Ck")),
-  singer     = list(`8` = c("Singer Ck"))
+  stanislaus = list(`11` = c("Stanislaus R")),
+  tuolumne   = list(`11` = c("Tuolumne R")),
+  merced     = list(`11` = c("Merced Hatch 1/", "Merced In-R", "Merced TOTAL")),
+  calaveras  = list(`3` = c("SJ Calaveras R 7/")),
+  spring_gulch = list(`8` = c("Spring Gulch")),
+  china_gulch  = list(`8` = c("China Gulch")),
+  olney      = list(`8` = c("Olney Ck")),
+  paynes     = list(`8` = c("Paynes Ck")),
+  cow        = list(`8` = c("Cow Ck")),
+  ash        = list(`8` = c("Ash Ck")),
+  stillwater = list(`8` = c("Stillwater Ck")),
+  inks       = list(`8` = c("Inks Ck")),
+  dye        = list(`9` = c("Dye Ck")),
+  toomes     = list(`9` = c("Toomes Ck")),
+  thomes     = list(`9` = c("Thomes Ck")),
+  coyote     = list(`9` = c("Coyote Ck")),
+  stoney     = list(`9` = c("Stoney Ck")),
+  singer     = list(`9` = c("Singer Ck"))
 )
 
 # -- Constants ----------------------------------------------------------------
 
-.section_to_table <- c(`1` = 7L, `2` = 8L, `3` = 9L, `4` = 10L)
+.section_to_table <- c(`1` = 8L, `2` = 9L, `3` = 10L, `4` = 11L)
 
-.table_run <- c(`2` = "lf", `3` = "w", `4` = "s", `5` = "f", `6` = "f",
-                `7` = "f", `8` = "f", `9` = "f", `10` = "f")
+.table_run <- c(`2` = "lf", `3` = "w", `4` = "w", `5` = "s", `6` = "f",
+                `7` = "f", `8` = "f", `9` = "f", `10` = "f", `11` = "f")
 
 .feather_system <- c("feather", "yuba", "bear_r")
 
 .fall_table_titles <- c(
   `1`  = "ALL RUNS: Central Valley (fall columns only)",
-  `5`  = "FALL RUN Summary I: Sacramento and San Joaquin River Systems",
-  `6`  = "FALL RUN Summary II: Sacramento River System",
-  `7`  = "FALL RUN Section 1: Keswick Dam to Red Bluff Diversion Dam (RBDD)",
-  `8`  = "FALL RUN Section 2: Red Bluff Diversion Dam (RBDD) to Princeton Ferry",
-  `9`  = "FALL RUN Section 3: Princeton Ferry to Sacramento",
-  `10` = "FALL RUN Section 4: San Joaquin River System"
+  `6`  = "FALL RUN Summary I: Sacramento and San Joaquin River Systems",
+  `7`  = "FALL RUN Summary II: Sacramento River System",
+  `8`  = "FALL RUN Section 1: Keswick Dam to Red Bluff Diversion Dam (RBDD)",
+  `9`  = "FALL RUN Section 2: Red Bluff Diversion Dam (RBDD) to Princeton Ferry",
+  `10` = "FALL RUN Section 3: Princeton Ferry to Sacramento",
+  `11` = "FALL RUN Section 4: San Joaquin River System"
 )
 
 # -- Normalization functions --------------------------------------------------
@@ -444,7 +447,7 @@
   loc_info <- .location_cols[[loc_name]]
   if (is.null(loc_info)) return(NULL)
   run_tables <- switch(run_abbrev,
-    lf = "2", w = "3", s = "4", f = c("7", "8", "9", "10"))
+    lf = "2", w = "3", s = "5", f = c("8", "9", "10", "11"))
   matching <- intersect(names(loc_info), run_tables)
   if (length(matching) == 0) return(NULL)
   as.integer(matching)
@@ -487,7 +490,7 @@
     if (ra == "f") {
       tbl <- .extract_fall_locations(valid)
     } else {
-      detail_idx <- switch(ra, lf = 2L, w = 3L, s = 4L)
+      detail_idx <- switch(ra, lf = 2L, w = 3L, s = 5L)
       tbl <- .extract_location_from_table(detail_idx, ra, valid)
     }
 
@@ -527,14 +530,14 @@
 .fall_menu <- function() {
   choices <- c("All Fall Run Tables",
                .fall_table_titles[["1"]],
-               .fall_table_titles[["5"]],
                .fall_table_titles[["6"]],
                .fall_table_titles[["7"]],
                .fall_table_titles[["8"]],
                .fall_table_titles[["9"]],
-               .fall_table_titles[["10"]])
+               .fall_table_titles[["10"]],
+               .fall_table_titles[["11"]])
 
-  indices <- c(0L, 1L, 5L, 6L, 7L, 8L, 9L, 10L)
+  indices <- c(0L, 1L, 6L, 7L, 8L, 9L, 10L, 11L)
 
   if (!interactive()) {
     stop("Multiple fall run tables available. Specify 'section', 'summary', ",
@@ -566,25 +569,25 @@
 .sac_main_fall_menu <- function() {
   if (!interactive()) {
     return(list(
-      "FALL RUN Section 1" = .extract_location_from_table(7L, "f", "sac_main"),
-      "FALL RUN Section 2" = .extract_location_from_table(8L, "f", "sac_main")
+      "FALL RUN Section 1" = .extract_location_from_table(8L, "f", "sac_main"),
+      "FALL RUN Section 2" = .extract_location_from_table(9L, "f", "sac_main")
     ))
   }
   choices <- c("All Fall Run Tables",
-               .fall_table_titles[["7"]],
-               .fall_table_titles[["8"]])
+               .fall_table_titles[["8"]],
+               .fall_table_titles[["9"]])
   selected <- utils::select.list(choices, multiple = TRUE,
     title = "Which mainstem Sacramento tables should get_escapement() return?")
   if (length(selected) == 0) return(invisible(NULL))
   if ("All Fall Run Tables" %in% selected) selected <- choices[-1]
 
   result <- list()
-  if (.fall_table_titles[["7"]] %in% selected)
-    result[[grandtab_detail[[7]][[1]]]] <-
-      .extract_location_from_table(7L, "f", "sac_main")
   if (.fall_table_titles[["8"]] %in% selected)
     result[[grandtab_detail[[8]][[1]]]] <-
       .extract_location_from_table(8L, "f", "sac_main")
+  if (.fall_table_titles[["9"]] %in% selected)
+    result[[grandtab_detail[[9]][[1]]]] <-
+      .extract_location_from_table(9L, "f", "sac_main")
   if (length(result) == 1) return(result[[1]])
   result
 }
@@ -621,10 +624,26 @@
   result
 }
 
+.filter_run_years <- function(result, run_years) {
+  if (is.null(run_years)) return(result)
+  run_years <- as.numeric(run_years)
+  keep <- function(tbl) {
+    yrs <- suppressWarnings(as.numeric(tbl$run_year))
+    tbl[!is.na(yrs) & yrs %in% run_years, , drop = FALSE]
+  }
+  if (is.data.frame(result)) return(keep(result))
+  if (is.list(result)) {
+    return(lapply(result, function(x) {
+      if (is.data.frame(x)) keep(x) else x
+    }))
+  }
+  result
+}
+
 # -- Routing handlers ---------------------------------------------------------
 
 .route_single_run <- function(run_abbrev, rs, loc, summary) {
-  detail_idx <- switch(run_abbrev, lf = 2L, w = 3L, s = 4L)
+  detail_idx <- switch(run_abbrev, lf = 2L, w = 3L, s = 5L)
 
   if (isTRUE(summary)) {
     if (!is.null(loc)) {
@@ -658,7 +677,7 @@
       if (rs == "feather") {
         fl <- intersect(.feather_system,
           names(which(vapply(.location_cols,
-                             function(x) "4" %in% names(x), logical(1)))))
+                             function(x) "5" %in% names(x), logical(1)))))
         return(.extract_location_from_table(detail_idx, run_abbrev, fl))
       }
     }
@@ -691,25 +710,25 @@
 
   if (!is.null(rs)) {
     if (rs == "sacramento") {
-      t5 <- .prepare_table(5L, "f")
-      t5 <- t5[, 1:5]
       t6 <- .prepare_table(6L, "f")
+      t6 <- t6[, 1:5]
+      t7 <- .prepare_table(7L, "f")
       message("Note: these are summary tables for the whole Sacramento River ",
               "System. For greater specification, use the 'section' and ",
               "'location' arguments.")
       return(list(
-        "FALL RUN Summary I: Sacramento and San Joaquin River Systems" = t5,
-        "FALL RUN Summary II: Sacramento River System" = t6
+        "FALL RUN Summary I: Sacramento and San Joaquin River Systems" = t6,
+        "FALL RUN Summary II: Sacramento River System" = t7
       ))
     }
     if (rs == "san_joaquin") {
-      return(.prepare_table(10L, "f"))
+      return(.prepare_table(11L, "f"))
     }
     if (rs == "feather") {
       fl <- intersect(.feather_system,
         names(which(vapply(.location_cols,
-                           function(x) "9" %in% names(x), logical(1)))))
-      return(.extract_location_from_table(9L, "f", fl))
+                           function(x) "10" %in% names(x), logical(1)))))
+      return(.extract_location_from_table(10L, "f", fl))
     }
   }
 
@@ -743,7 +762,7 @@
   }
 
   result <- list()
-  for (idx in c(2L, 3L, 4L, 7L, 8L, 9L, 10L)) {
+  for (idx in c(2L, 3L, 5L, 8L, 9L, 10L, 11L)) {
     ra   <- .table_run[as.character(idx)]
     name <- grandtab_detail[[idx]][[1]]
     result[[name]] <- .prepare_table(idx, ra)
@@ -771,7 +790,7 @@
         } else {
           # Multi-run context: return all fall section tables
           fl <- list()
-          for (idx in c(7L, 8L, 9L, 10L)) {
+          for (idx in c(8L, 9L, 10L, 11L)) {
             fl[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
           }
           fl
@@ -836,8 +855,15 @@
     return(result)
   }
 
-  stop("Please specify at least one argument: run, river_system, location, ",
-       "summary, or section.", call. = FALSE)
+  # No filters — return all 11 tables in order with snake_case column names
+  result <- list()
+  result[[grandtab_detail[[1]][[1]]]] <- .prepare_full_t1()
+  for (idx in 2:11) {
+    ra   <- .table_run[as.character(idx)]
+    name <- grandtab_detail[[idx]][[1]]
+    result[[name]] <- .prepare_table(idx, ra)
+  }
+  result
 }
 
 # -- Main function ------------------------------------------------------------
@@ -859,11 +885,13 @@
 #'   return summary-level data from Table 1. If \code{FALSE} or \code{NULL},
 #'   return detail data.
 #' @param section Integer 1--4. Fall run geographic section (maps to
-#'   Tables 7--10). Only valid for fall run.
+#'   Tables 8--11). Only valid for fall run.
+#' @param run_years Numeric vector of years to filter results to, or
+#'   \code{NULL} (default) to return all years.
 #' @return A tibble or named list of tibbles.
 #' @export
 get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
-                           summary = NULL, section = NULL) {
+                           summary = NULL, section = NULL, run_years = NULL) {
 
   run_norm <- .normalize_run(run)
   rs_norm  <- .normalize_river_system(river_system)
@@ -923,5 +951,5 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
     .route_null_run(rs_norm, loc_norm, summary, section)
   }
 
-  .finalize_output(result)
+  .filter_run_years(.finalize_output(result), run_years)
 }

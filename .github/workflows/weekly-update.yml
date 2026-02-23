@@ -61,6 +61,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/grandtab_detail.rda data/grandtab_sections.rda data/grandtab_summary.rda
+          git add data/grandtab_detail.rda data/grandtab_sections.rda data/grandtab_summary.rda "inst/extdata/GrandTab Documentation.rtf"
           git commit -m "Update grandtab data with latest escapement figures"
           git push

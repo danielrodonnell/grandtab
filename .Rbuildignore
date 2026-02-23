@@ -1,2 +1,6 @@
 ^data-raw$
 ^\.github$
+^\.claude$
+^grandtab\.Rcheck$
+^grandtab_.*\.tar\.gz$
+^LICENSE\.md$

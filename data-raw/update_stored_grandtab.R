@@ -24,6 +24,15 @@ GRANDTAB_URL <- "https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=84381"
 MODEL <- "claude-sonnet-4-5-20250929"
 API_DELAY <- 2  # seconds between API calls
 
+# Number of distinct data tables in the GrandTab PDF (10).
+# grandtab_detail has 11 entries because Table 3 (Winter main) and Table 4
+# (Winter extras) are both derived from the same PDF pages.
+.N_PDF_TABLES <- 10L
+
+# Maps each grandtab_detail index (1-11) to its PDF table index (1-10).
+# Table 4 (winter extras) shares PDF pages with Table 3 (winter main).
+.PDF_TABLE_IDX <- c(1L, 2L, 3L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L)
+
 # -- Download PDF -------------------------------------------------------------
 
 #' Download GrandTab PDF to a local path
@@ -74,7 +83,7 @@ render_pages <- function(pdf_path, pages, out_dir = "data-raw/pages",
 #' list of integer vectors — one per table — each of length 1 or 2.
 #'
 #' @param pdf_path Local path to PDF
-#' @param baseline Named list of 10 elements, each list(title, data_frame)
+#' @param baseline Named list of 11 elements, each list(title, data_frame)
 #' @return List of integer vectors (page numbers per table), or NULL if up to date
 detect_page_map <- function(pdf_path, baseline) {
   all_data <- pdf_data(pdf_path)
@@ -96,8 +105,9 @@ detect_page_map <- function(pdf_path, baseline) {
   }else {
     message("Found '", target, "' on pages: ", paste(target_pages, collapse = ", "))
   }
-  if (length(target_pages) != length(baseline)) {
-    warning("Expected ", length(baseline), " target pages, found ", length(target_pages))
+  if (length(target_pages) != .N_PDF_TABLES) {
+    warning("Expected ", .N_PDF_TABLES, " PDF data pages, found ",
+            length(target_pages))
   }
 
   # For each target page, check if adjacent pages also have bracketed data
@@ -129,16 +139,17 @@ detect_page_map <- function(pdf_path, baseline) {
 #' Validate that Table 1 summary totals match detail table totals
 #'
 #' Compares LATE-FALL_TOTAL, WINTER_TOTAL, SPRING_TOTAL, and FALL_TOTAL from
-#' Table 1 (ALL RUNS) against the corresponding TOTAL columns in Tables 2-5.
-#' Only checks rows with bracketed (provisional) years. Warns on mismatches.
+#' Table 1 (ALL RUNS) against the corresponding TOTAL columns in Tables 2, 3,
+#' 5, and 6. Only checks rows with bracketed (provisional) years. Warns on
+#' mismatches.
 #'
-#' @param detail The grandtab_detail list (10 elements)
+#' @param detail The grandtab_detail list (11 elements)
 #' Check cross-table consistency and return indices of mismatched tables
 #'
-#' Returns a sorted integer vector of table indices (from 1-5) involved in
+#' Returns a sorted integer vector of table indices (from 1-6) involved in
 #' mismatches. Empty integer(0) means everything is consistent.
 #'
-#' @param detail The grandtab_detail list (10 elements)
+#' @param detail The grandtab_detail list (11 elements)
 #' @return Integer vector of table indices that have mismatches
 validate_cross_table <- function(detail) {
   parse_num <- function(x) suppressWarnings(as.numeric(gsub(",", "", x)))
@@ -146,8 +157,8 @@ validate_cross_table <- function(detail) {
   t1 <- detail[[1]][[2]]
   t2 <- detail[[2]][[2]]
   t3 <- detail[[3]][[2]]
-  t4 <- detail[[4]][[2]]
   t5 <- detail[[5]][[2]]
+  t6 <- detail[[6]][[2]]
 
   extract_year <- function(x) str_extract(x, "\\d{4}$|\\d{4}(?=\\]$)")
 
@@ -160,12 +171,12 @@ validate_cross_table <- function(detail) {
     list(name = "WINTER", t1_col = "Winter TOTAL", detail_idx = 3L,
          detail_tbl = t3, detail_col = "WINTER TOTAL CV SYSTEM",
          detail_year = extract_year(t3[["Winter YEAR"]])),
-    list(name = "SPRING", t1_col = "Spring TOTAL", detail_idx = 4L,
-         detail_tbl = t4, detail_col = "TOTAL SPRING RUN",
-         detail_year = extract_year(t4[["YEAR"]])),
-    list(name = "FALL", t1_col = "Fall TOTAL", detail_idx = 5L,
-         detail_tbl = t5, detail_col = "Sac SJ System TOTAL",
-         detail_year = extract_year(t5[["YEAR"]]))
+    list(name = "SPRING", t1_col = "Spring TOTAL", detail_idx = 5L,
+         detail_tbl = t5, detail_col = "TOTAL SPRING RUN 7/",
+         detail_year = extract_year(t5[["YEAR"]])),
+    list(name = "FALL", t1_col = "Fall TOTAL", detail_idx = 6L,
+         detail_tbl = t6, detail_col = "Sac SJ System TOTAL",
+         detail_year = extract_year(t6[["YEAR"]]))
   )
 
   bad_indices <- integer(0)
@@ -202,22 +213,21 @@ validate_cross_table <- function(detail) {
 
 #' Update baseline data by extracting new rows via Claude vision
 #' @param pdf_path Local path to GrandTab PDF
-#' @param baseline Named list of 10 elements, each list(title, data_frame)
+#' @param baseline Named list of 11 elements, each list(title, data_frame)
 #' @param img_dir Directory containing rendered page PNGs
 #' @return Updated baseline list with new rows appended
 update_baseline <- function(pdf_path, baseline, img_dir = "data-raw/pages") {
 
-  # Auto-detect page mapping (returns list of integer vectors)
+  # Auto-detect page mapping — returns one entry per PDF data table (10 total)
   page_map <- detect_page_map(pdf_path, baseline)
 
   if(is.null(page_map)) {
     return(cat("Stored GrandTab database is already up to date!"))
   }
 
-  if (length(page_map) != length(baseline)) {
-    stop("Page map length (", length(page_map),
-         ") does not match baseline length (", length(baseline), ")")
-  }
+  # Expand to one entry per baseline table (11 total).
+  # Table 4 (winter extras) shares PDF pages with Table 3 (winter main).
+  full_page_map <- page_map[.PDF_TABLE_IDX]
 
   # Render all unique pages we need
   all_pages <- sort(unique(unlist(page_map)))
@@ -392,8 +402,8 @@ Rules:
     ))
   }
 
-  # Initial extraction of all 10 tables
-  updated <- map2(baseline, page_map, extract_table)
+  # Initial extraction of all 11 baseline tables
+  updated <- map2(baseline, full_page_map, extract_table)
 
   # Cross-table consistency check with auto-correction
   bad <- validate_cross_table(updated)
@@ -402,7 +412,7 @@ Rules:
     message("Re-extracting tables ", paste(bad, collapse = ", "),
             " to fix cross-table mismatches...")
     for (idx in bad) {
-      updated[[idx]] <- extract_table(baseline[[idx]], page_map[[idx]])
+      updated[[idx]] <- extract_table(baseline[[idx]], full_page_map[[idx]])
     }
 
     bad2 <- validate_cross_table(updated)
@@ -431,12 +441,12 @@ Rules:
 
 #' Build grandtab_sections from the detail list
 #'
-#' Combines detail tables 2-10 (all except "ALL RUNS") into a single wide
+#' Combines detail tables 2-11 (all except "ALL RUNS") into a single wide
 #' data frame with a section_title column and the first column renamed to YEAR.
-#' @param detail The grandtab_detail list (10 elements)
+#' @param detail The grandtab_detail list (11 elements)
 #' @return A tibble
 build_sections <- function(detail) {
-  lapply(detail[2:10], \(x) {
+  lapply(detail[2:11], \(x) {
     df <- x[[2]]
     names(df)[1] <- "YEAR"
     df$section_title <- x[[1]]
@@ -450,7 +460,7 @@ build_sections <- function(detail) {
 #'
 #' Extracts the four run summaries (LATE-FALL, WINTER, SPRING, FALL) from
 #' detail table 1 ("ALL RUNS").
-#' @param detail The grandtab_detail list (10 elements)
+#' @param detail The grandtab_detail list (11 elements)
 #' @return A named list of 4 tibbles
 build_summary <- function(detail) {
   all_runs <- detail[[1]][[2]]
@@ -498,6 +508,106 @@ build_summary <- function(detail) {
   )
 }
 
+# -- Update GrandTab intro documentation RTF ---------------------------------
+
+#' Update the GrandTab documentation RTF to match the current PDF
+#'
+#' Renders the first two pages of the PDF (intro text) and sends them to Claude
+#' along with the existing RTF source. Claude updates only the text content
+#' (words, dates, numbers) while preserving all RTF control codes and formatting.
+#'
+#' @param pdf_path Local path to the GrandTab PDF
+#' @param img_dir Directory for rendered page PNGs
+update_grandtab_info <- function(pdf_path, img_dir = "data-raw/pages") {
+  rtf_path <- "inst/extdata/GrandTab Documentation.rtf"
+
+  if (!file.exists(rtf_path)) {
+    warning("RTF file not found at ", rtf_path, "; skipping documentation update.")
+    return(invisible(NULL))
+  }
+
+  # 1. Render intro pages (1-2) to PNGs
+  render_pages(pdf_path, 1:2, out_dir = img_dir)
+
+  # 2. Read existing RTF
+  rtf_text <- paste(readLines(rtf_path, warn = FALSE), collapse = "\n")
+
+  # 3. Encode page images to base64
+  img_content <- lapply(1:2, \(pg) {
+    img_path <- file.path(img_dir, sprintf("grandtab_page_%02d.png", pg))
+    img_b64 <- base64enc::base64encode(
+      readBin(img_path, "raw", file.info(img_path)$size)
+    )
+    list(type = "image",
+         source = list(type = "base64", media_type = "image/png",
+                       data = img_b64))
+  })
+
+  # 4. Build prompt
+  prompt <- sprintf("
+I have an existing RTF file whose complete source is shown below. The RTF contains
+the introductory text from a GrandTab PDF document.
+
+I am also providing PNG images of the first two pages of the CURRENT version of the
+GrandTab PDF. The text content may have changed (new dates, updated wording, etc.).
+
+Your task: update the RTF so its TEXT content matches the PDF images, while
+preserving EVERY RTF control code exactly as-is.
+
+Rules:
+- Return the COMPLETE updated RTF file, starting with {\\rtf1 and ending with }
+- Change ONLY text content (words, dates, numbers, names) to match the PDF images
+- Preserve every RTF control code, font definition, color table, paragraph format
+- Keep the exact same structural layout (line breaks, paragraph breaks, formatting)
+- If the text is already up to date, return the RTF unchanged
+- No commentary, no markdown fences — just the raw RTF source
+
+Existing RTF source:
+%s
+", rtf_text)
+
+  # 5. Build message and call Claude API
+  msg_content <- c(img_content, list(list(type = "text", text = prompt)))
+
+  resp <- request("https://api.anthropic.com/v1/messages") |>
+    req_headers(
+      `x-api-key`         = Sys.getenv("ANTHROPIC_API_KEY"),
+      `anthropic-version`  = "2023-06-01",
+      `content-type`       = "application/json"
+    ) |>
+    req_body_json(list(
+      model      = MODEL,
+      max_tokens = 8192L,
+      messages   = list(list(
+        role    = "user",
+        content = msg_content
+      ))
+    )) |>
+    req_perform()
+
+  new_rtf <- resp_body_json(resp)$content[[1]]$text
+
+  # 6. Validate response
+  if (!startsWith(trimws(new_rtf), "{\\rtf1")) {
+    warning("Claude response does not look like valid RTF; skipping update.")
+    return(invisible(NULL))
+  }
+
+  # Check balanced braces
+  n_open  <- nchar(gsub("[^{]", "", new_rtf))
+  n_close <- nchar(gsub("[^}]", "", new_rtf))
+  if (n_open != n_close) {
+    warning("RTF has unbalanced braces (", n_open, " open, ", n_close,
+            " close); skipping update.")
+    return(invisible(NULL))
+  }
+
+  # 7. Write updated RTF
+  writeLines(new_rtf, rtf_path, useBytes = TRUE)
+  message("Updated GrandTab documentation RTF.")
+  invisible(rtf_path)
+}
+
 # -- Run everything -----------------------------------------------------------
 
 if (interactive()) {
@@ -521,4 +631,7 @@ if (interactive()) {
   grandtab_detail <- updated
   save(grandtab_detail, file = "data/grandtab_detail.rda", compress = "xz")
   message("Saved updated baseline.")
+
+  # 6. Update intro documentation RTF
+  update_grandtab_info(pdf_path)
 }

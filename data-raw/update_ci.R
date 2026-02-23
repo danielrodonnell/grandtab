@@ -45,5 +45,9 @@ if (any(grepl("already up to date", result, ignore.case = TRUE))) {
   grandtab_detail <- updated
   save(grandtab_detail, file = "data/grandtab_detail.rda", compress = "xz")
   message("Saved updated grandtab_detail.rda")
+
+  # 6. Update intro documentation RTF
+  update_grandtab_info(pdf_path)
+
   writeLines("UPDATE_NEEDED=true", Sys.getenv("GITHUB_OUTPUT"))
 }

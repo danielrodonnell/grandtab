@@ -1,0 +1,42 @@
+Package: grandtab
+Type: Package
+Title: Programmatic Access to California GrandTab Chinook Salmon Escapement Data
+Version: 0.1.0
+Authors@R: person("Danny", "O'Donnell", email = "dodonnell2011@gmail.com",
+    role = c("aut", "cre"))
+Description: Provides functions to query and retrieve California Department of
+    Fish and Wildlife GrandTab Chinook salmon escapement data for all four
+    Central Valley runs (fall, late-fall, winter, spring). Supports filtering
+    by run type, river system, location, fall run geographic section, and year.
+    Includes column metadata lookup, raw table access, table footnotes,
+    supplementary winter run data, GrandTab documentation, and an interactive
+    map of monitoring locations.
+Depends:
+    R (>= 4.1.0)
+License: MIT + file LICENSE
+URL: https://github.com/danielrodonnell/grandtab
+BugReports: https://github.com/danielrodonnell/grandtab/issues
+Imports:
+    stringr,
+    tibble
+Suggests:
+    ggplot2,
+    leaflet,
+    remotes,
+    sf,
+    shiny
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.3
+Collate: 
+    'data.R'
+    'get_escapement.R'
+    'get_column_metadata.R'
+    'get_column_notes.R'
+    'get_grandtab_info.R'
+    'get_grandtab_raw.R'
+    'get_winter_extras.R'
+    'grandtab.R'
+    'map_grandtab.R'
+    'utils.R'
+    'zzz.R'
