@@ -26,15 +26,6 @@
 #'   (\url{https://wildlife.ca.gov/Conservation/Fishes/Chinook-Salmon/Escapement})
 "grandtab_detail"
 
-#' Condensed raw GrandTab tables (most recent 10 years)
-#'
-#' Same structure as \code{\link{grandtab_detail}} but containing only the
-#' 10 most recent run years of data. Used internally for faster rendering during
-#' the CI update process.
-#'
-#' @source California Department of Fish and Wildlife GrandTab
-"grandtab_detail_short"
-
 #' GrandTab data in wide tidy format
 #'
 #' All 11 GrandTab tables joined into a single wide tibble with 677 rows (one
