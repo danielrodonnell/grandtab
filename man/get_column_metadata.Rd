@@ -10,8 +10,7 @@ get_column_metadata(
   river_system = NULL,
   location = NULL,
   summary = NULL,
-  section = NULL,
-  run_years = NULL
+  section = NULL
 )
 }
 \arguments{
@@ -33,9 +32,6 @@ when piped. Leave \code{NULL} (default) for standalone use.}
 
 \item{section}{Integer 1--4. Fall run section. Passed to
 \code{get_escapement()}.}
-
-\item{run_years}{Ignored (column structure does not depend on year). Kept
-for consistency with \code{get_escapement()}.}
 }
 \value{
 A tibble with columns \code{column_name}, \code{column_position},

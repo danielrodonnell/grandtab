@@ -414,8 +414,6 @@
 #'   \code{get_escapement()}.
 #' @param section Integer 1--4. Fall run section. Passed to
 #'   \code{get_escapement()}.
-#' @param run_years Ignored (column structure does not depend on year). Kept
-#'   for consistency with \code{get_escapement()}.
 #'
 #' @return A tibble with columns \code{column_name}, \code{column_position},
 #'   \code{grandtab_raw_name}, and \code{description}. Returns a named list of
@@ -434,13 +432,12 @@
 #' # get_escapement(run = "f", section = 2) |> get_column_metadata()
 get_column_metadata <- function(x = NULL, run = NULL, river_system = NULL,
                                 location = NULL, summary = NULL,
-                                section = NULL, run_years = NULL) {
+                                section = NULL) {
 
   if (!is.null(x) && (is.data.frame(x) ||
                        (is.list(x) && !is.data.frame(x)))) {
     result <- x
   } else {
-    # run_years intentionally omitted — column structure is year-independent
     result <- get_escapement(run = run, river_system = river_system,
                              location = location, summary = summary,
                              section = section)
