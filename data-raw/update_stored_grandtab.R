@@ -22,7 +22,7 @@
 
 # Fallback URL — used when the CalFish page cannot be reached.
 # The live URL is resolved dynamically by get_latest_grandtab_url().
-GRANDTAB_URL  <- "https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=84381"
+GRANDTAB_URL  <- "https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=232739&inline=1"
 CALFISH_URL   <- "https://www.calfish.org/ProgramsData/Species/CDFWAnadromousResourceAssessment.aspx"
 MODEL         <- "claude-sonnet-4-5-20250929"
 API_DELAY     <- 2  # seconds between API calls
@@ -58,11 +58,12 @@ get_latest_grandtab_url <- function(calfish_url = CALFISH_URL,
       resp_body_string()
 
     # Links on the page have the form:
-    #   href="https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=XXXXXX&inline=1"
-    # with link text "GrandTab.YYYY.MM.DD"
+    #   href="https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=XXXXXX&amp;inline=1"
+    # with link text wrapped in a <u> tag: <u>GrandTab.YYYY.MM.DD</u>
+    # The pattern handles optional inner HTML tags between <a> and the date text.
     pattern <- paste0(
       'href="(https?://nrm\\.dfg\\.ca\\.gov/FileHandler\\.ashx',
-      '\\?DocumentID=(\\d+)[^"]*)"[^>]*>\\s*(GrandTab\\.\\d{4}\\.\\d{2}\\.\\d{2})\\s*<'
+      '\\?DocumentID=(\\d+)[^"]*)"[^>]*>(?:<[^>]+>)*(GrandTab\\.\\d{4}\\.\\d{2}\\.\\d{2})'
     )
     m <- str_match_all(html, pattern)[[1]]
 
