@@ -12,8 +12,8 @@ library(base64enc)
 
 source("data-raw/update_stored_grandtab.R")
 
-# 1. Download latest PDF
-pdf_path <- download_grandtab()
+# 1. Resolve latest PDF URL from CalFish, then download
+pdf_path <- download_grandtab(url = get_latest_grandtab_url())
 
 # 2. Load baseline
 load("data/grandtab_detail.rda")

@@ -20,9 +20,12 @@
 
 # -- Configuration ------------------------------------------------------------
 
-GRANDTAB_URL <- "https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=84381"
-MODEL <- "claude-sonnet-4-5-20250929"
-API_DELAY <- 2  # seconds between API calls
+# Fallback URL — used when the CalFish page cannot be reached.
+# The live URL is resolved dynamically by get_latest_grandtab_url().
+GRANDTAB_URL  <- "https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=84381"
+CALFISH_URL   <- "https://www.calfish.org/ProgramsData/Species/CDFWAnadromousResourceAssessment.aspx"
+MODEL         <- "claude-sonnet-4-5-20250929"
+API_DELAY     <- 2  # seconds between API calls
 
 # Number of distinct data tables in the GrandTab PDF (10).
 # grandtab_detail has 11 entries because Table 3 (Winter main) and Table 4
@@ -32,6 +35,69 @@ API_DELAY <- 2  # seconds between API calls
 # Maps each grandtab_detail index (1-11) to its PDF table index (1-10).
 # Table 4 (winter extras) shares PDF pages with Table 3 (winter main).
 .PDF_TABLE_IDX <- c(1L, 2L, 3L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L)
+
+# -- Resolve latest PDF URL from CalFish --------------------------------------
+
+#' Fetch the most current GrandTab PDF URL from the CalFish data access page
+#'
+#' Scrapes the CalFish GrandTab data access page, which lists all GrandTab PDF
+#' releases with named links in the form \code{GrandTab.YYYY.MM.DD}. Returns
+#' the URL of the entry with the most recent date. Falls back to
+#' \code{fallback_url} if the page cannot be fetched or no dated links are
+#' found.
+#'
+#' @param calfish_url URL of the CalFish GrandTab data access page
+#' @param fallback_url URL to return if the page cannot be scraped
+#' @return Character scalar: the URL of the most recent GrandTab PDF
+get_latest_grandtab_url <- function(calfish_url = CALFISH_URL,
+                                    fallback_url = GRANDTAB_URL) {
+  tryCatch({
+    html <- request(calfish_url) |>
+      req_headers(`User-Agent` = "R/grandtab") |>
+      req_perform() |>
+      resp_body_string()
+
+    # Links on the page have the form:
+    #   href="https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=XXXXXX&inline=1"
+    # with link text "GrandTab.YYYY.MM.DD"
+    pattern <- paste0(
+      'href="(https?://nrm\\.dfg\\.ca\\.gov/FileHandler\\.ashx',
+      '\\?DocumentID=(\\d+)[^"]*)"[^>]*>\\s*(GrandTab\\.\\d{4}\\.\\d{2}\\.\\d{2})\\s*<'
+    )
+    m <- str_match_all(html, pattern)[[1]]
+
+    if (nrow(m) == 0) {
+      message("No dated GrandTab links found on CalFish page; using fallback URL.")
+      return(fallback_url)
+    }
+
+    # Columns: full match, URL, DocumentID, link text (GrandTab.YYYY.MM.DD)
+    urls    <- m[, 2]
+    doc_ids <- as.integer(m[, 3])
+    dates   <- as.Date(sub("GrandTab\\.", "", m[, 4]), format = "%Y.%m.%d")
+
+    best_idx  <- which.max(dates)
+    best_url  <- urls[best_idx]
+    best_date <- dates[best_idx]
+    best_id   <- doc_ids[best_idx]
+
+    current_id <- as.integer(str_extract(fallback_url, "(?<=DocumentID=)\\d+"))
+
+    if (is.na(current_id) || best_id != current_id) {
+      message("Using GrandTab PDF dated ", format(best_date),
+              " (DocumentID=", best_id, "): ", best_url)
+    } else {
+      message("GrandTab PDF URL confirmed current (",
+              format(best_date), ", DocumentID=", best_id, ").")
+    }
+
+    best_url
+  }, error = function(e) {
+    warning("Could not resolve latest GrandTab URL from CalFish: ",
+            conditionMessage(e), "; using fallback URL.")
+    fallback_url
+  })
+}
 
 # -- Download PDF -------------------------------------------------------------
 
@@ -611,8 +677,8 @@ Existing RTF source:
 # -- Run everything -----------------------------------------------------------
 
 if (interactive()) {
-  # 1. Download latest PDF
-  pdf_path <- download_grandtab()
+  # 1. Resolve URL and download latest PDF
+  pdf_path <- download_grandtab(url = get_latest_grandtab_url())
 
   # 2. Load your baseline (adjust path as needed)
   load("data/grandtab_detail.rda")
