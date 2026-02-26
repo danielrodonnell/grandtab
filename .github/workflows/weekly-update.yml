@@ -28,7 +28,7 @@ jobs:
       - name: Install R packages
         run: |
           Rscript -e 'install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))'
-          Rscript -e 'pak::pkg_install(c("reticulate", "httr2", "dplyr", "readr", "purrr", "stringr", "pdftools", "base64enc"))'
+          Rscript -e 'pak::pkg_install(c("reticulate", "yrvelez/claudeR", "httr2", "dplyr", "readr", "purrr", "stringr", "pdftools", "base64enc"))'
 
       - name: Set up Python and pymupdf
         run: |

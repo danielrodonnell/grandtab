@@ -431,23 +431,14 @@ Rules:
 
     # Extract with validation and retry
     extract_rows <- function(attempt = 1) {
-      resp <- request("https://api.anthropic.com/v1/messages") |>
-        req_headers(
-          `x-api-key`         = Sys.getenv("ANTHROPIC_API_KEY"),
-          `anthropic-version`  = "2023-06-01",
-          `content-type`       = "application/json"
-        ) |>
-        req_body_json(list(
-          model      = MODEL,
-          max_tokens = 8192L,
-          messages   = list(list(
-            role    = "user",
-            content = msg_content
-          ))
-        )) |>
-        req_perform()
-
-      csv_text <- resp_body_json(resp)$content[[1]]$text
+      csv_text <- claudeR(
+        prompt      = list(list(role = "user", content = msg_content)),
+        model       = MODEL,
+        max_tokens  = 8192L,
+        temperature = 0,
+        top_p       = NULL,
+        top_k       = NULL
+      )
 
       new_rows <- tryCatch(
         read_csv(I(csv_text), show_col_types = FALSE, na = "NA",
@@ -684,23 +675,14 @@ Existing RTF source:
   # 5. Build message and call Claude API
   msg_content <- c(img_content, list(list(type = "text", text = prompt)))
 
-  resp <- request("https://api.anthropic.com/v1/messages") |>
-    req_headers(
-      `x-api-key`         = Sys.getenv("ANTHROPIC_API_KEY"),
-      `anthropic-version`  = "2023-06-01",
-      `content-type`       = "application/json"
-    ) |>
-    req_body_json(list(
-      model      = MODEL,
-      max_tokens = 8192L,
-      messages   = list(list(
-        role    = "user",
-        content = msg_content
-      ))
-    )) |>
-    req_perform()
-
-  new_rtf <- resp_body_json(resp)$content[[1]]$text
+  new_rtf <- claudeR(
+    prompt      = list(list(role = "user", content = msg_content)),
+    model       = MODEL,
+    max_tokens  = 8192L,
+    temperature = 0,
+    top_p       = NULL,
+    top_k       = NULL
+  )
 
   # 6. Validate response
   if (!startsWith(trimws(new_rtf), "{\\rtf1")) {

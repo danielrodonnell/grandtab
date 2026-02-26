@@ -2,6 +2,7 @@
 # Sources the update functions and runs non-interactively.
 
 library(reticulate)
+library(claudeR)
 library(httr2)
 library(dplyr)
 library(readr)
