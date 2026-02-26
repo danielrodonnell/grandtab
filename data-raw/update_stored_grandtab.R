@@ -100,6 +100,54 @@ get_latest_grandtab_url <- function(calfish_url = CALFISH_URL,
   })
 }
 
+# -- Resolve latest Claude Sonnet model ---------------------------------------
+
+#' Fetch the most recent Claude Sonnet model ID from the Anthropic API
+#'
+#' Calls \code{GET /v1/models}, filters for Sonnet models, and returns the ID
+#' of the most recently released one. The API returns models in most-recent-first
+#' order, so no sorting is required. Falls back to \code{fallback} if the API
+#' cannot be reached or returns no Sonnet models.
+#'
+#' @param fallback Model ID to return on error
+#' @return Character scalar: the model ID to use
+get_latest_sonnet_model <- function(fallback = MODEL) {
+  tryCatch({
+    models <- request("https://api.anthropic.com/v1/models") |>
+      req_headers(
+        `x-api-key`         = Sys.getenv("ANTHROPIC_API_KEY"),
+        `anthropic-version` = "2023-06-01"
+      ) |>
+      req_perform() |>
+      resp_body_json()
+
+    sonnet_ids <- Filter(
+      function(m) grepl("sonnet", m$id, fixed = TRUE),
+      models$data
+    )
+
+    if (length(sonnet_ids) == 0) {
+      message("No Sonnet models found via API; using fallback: ", fallback)
+      return(fallback)
+    }
+
+    # API returns models in most-recent-first order
+    best <- sonnet_ids[[1]]$id
+
+    if (best != fallback) {
+      message("Using latest Sonnet model: ", best)
+    } else {
+      message("Sonnet model is current: ", best)
+    }
+
+    best
+  }, error = function(e) {
+    warning("Could not resolve latest Sonnet model: ", conditionMessage(e),
+            "; using fallback: ", fallback)
+    fallback
+  })
+}
+
 # -- Download PDF -------------------------------------------------------------
 
 #' Download GrandTab PDF to a local path
@@ -678,7 +726,8 @@ Existing RTF source:
 # -- Run everything -----------------------------------------------------------
 
 if (interactive()) {
-  # 1. Resolve URL and download latest PDF
+  # 1. Resolve latest model and URL, then download
+  MODEL    <- get_latest_sonnet_model()
   pdf_path <- download_grandtab(url = get_latest_grandtab_url())
 
   # 2. Load your baseline (adjust path as needed)

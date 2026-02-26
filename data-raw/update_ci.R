@@ -12,7 +12,8 @@ library(base64enc)
 
 source("data-raw/update_stored_grandtab.R")
 
-# 1. Resolve latest PDF URL from CalFish, then download
+# 1. Resolve latest Sonnet model and PDF URL, then download
+MODEL    <- get_latest_sonnet_model()
 pdf_path <- download_grandtab(url = get_latest_grandtab_url())
 
 # 2. Load baseline
