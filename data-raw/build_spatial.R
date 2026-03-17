@@ -422,7 +422,7 @@ location_meta <- data.frame(
                      "Thomes Creek", "Coyote Creek", "Stoney Creek",
                      "Singer Creek", "Feather River", "Yuba River",
                      "Bear River", "Dry Creek", "American River",
-                     "Natomas East Main Drain",
+                     "Natomas Drain",
                      "San Joaquin River", "Calaveras River",
                      "Cosumnes River", "Mokelumne River",
                      "Stanislaus River", "Tuolumne River", "Merced River"),

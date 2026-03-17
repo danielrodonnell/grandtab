@@ -3,15 +3,15 @@
 # map_grandtab.R
 #
 # Interactive leaflet map of GrandTab Chinook salmon monitoring locations.
-# Supports highlighting by location, river system, or fall section, with
-# click-to-plot escapement time series via get_escapement().
+# Supports highlighting by location, river system, or fall section. Hovering
+# a river shows a tooltip with available salmon runs.
 # ============================================================================
 
 # -- Dependency check --------------------------------------------------------
 
 .check_map_deps <- function() {
   missing <- character(0)
-  for (pkg in c("leaflet", "shiny", "sf", "ggplot2")) {
+  for (pkg in c("htmltools", "htmlwidgets", "leaflet", "shiny", "sf")) {
     if (!requireNamespace(pkg, quietly = TRUE)) {
       missing <- c(missing, pkg)
     }
@@ -27,64 +27,104 @@
 # -- Load spatial data -------------------------------------------------------
 
 .load_spatial <- function() {
-  fname <- "grandtab_spatial.rds"
-  path <- system.file("extdata", fname, package = "grandtab")
+  fname <- "grandtab_spatial.gpkg"
+  path  <- system.file("extdata", fname, package = "grandtab")
 
-  if (nzchar(path) && file.exists(path)) return(readRDS(path))
+  if (!nzchar(path) || !file.exists(path)) {
+    # Fall back for development mode — build candidate paths
+    candidates <- c(
+      file.path("inst", "extdata", fname),
+      file.path("..", "inst", "extdata", fname)
+    )
 
-  # Fall back for development mode — build candidate paths
-  candidates <- c(
-    file.path("inst", "extdata", fname),           # from package root
-    file.path("..", "inst", "extdata", fname)       # from R/
-  )
+    for (i in rev(seq_len(sys.nframe()))) {
+      ofile <- tryCatch(get("ofile", envir = sys.frame(i)), error = function(e) NULL)
+      if (!is.null(ofile)) {
+        pkg_root   <- dirname(normalizePath(dirname(ofile), mustWork = FALSE))
+        candidates <- c(file.path(pkg_root, "inst", "extdata", fname), candidates)
+        break
+      }
+    }
 
-  # Also try to locate from the source file's own path
-  for (i in rev(seq_len(sys.nframe()))) {
-    ofile <- tryCatch(get("ofile", envir = sys.frame(i)), error = function(e) NULL)
-    if (!is.null(ofile)) {
-      script_dir <- normalizePath(dirname(ofile), mustWork = FALSE)
-      # This file lives in R/, so go up one to package root
-      pkg_root <- dirname(script_dir)
-      candidates <- c(file.path(pkg_root, "inst", "extdata", fname), candidates)
-      break
+    wd <- getwd()
+    for (d in c(wd, dirname(wd), dirname(dirname(wd)))) {
+      candidates <- c(candidates, file.path(d, "inst", "extdata", fname))
+    }
+
+    path <- NULL
+    for (p in candidates) {
+      if (file.exists(p)) { path <- p; break }
     }
   }
 
-  # Walk up from getwd() looking for inst/extdata/
-  wd <- getwd()
-  for (d in c(wd, dirname(wd), dirname(dirname(wd)))) {
-    p <- file.path(d, "inst", "extdata", fname)
-    candidates <- c(candidates, p)
+  if (is.null(path) || !file.exists(path)) {
+    stop("grandtab_spatial.gpkg not found. ",
+         "Run data-raw/build_gpkg.R to generate the spatial data, ",
+         "or reinstall the grandtab package.", call. = FALSE)
   }
 
-  for (p in candidates) {
-    if (file.exists(p)) return(readRDS(p))
+  flowlines <- sf::st_read(path, layer = "flowlines", quiet = TRUE)
+  points    <- sf::st_read(path, layer = "points",    quiet = TRUE)
+
+  # Reconstruct location_meta from the flowlines attributes and points
+  location_meta <- as.data.frame(sf::st_drop_geometry(flowlines))[
+    , c("location_id", "display_name", "river_system", "fall_section")
+  ]
+  hatch_df <- sf::st_drop_geometry(points[points$point_type == "hatchery", ])
+  location_meta$has_hatchery <- location_meta$location_id %in% hatch_df$associated_location
+  location_meta$hatchery_id  <- NA_character_
+  for (i in seq_len(nrow(hatch_df))) {
+    idx <- which(location_meta$location_id == hatch_df$associated_location[i])
+    if (length(idx) > 0) {
+      prev <- location_meta$hatchery_id[idx]
+      location_meta$hatchery_id[idx] <- if (is.na(prev)) hatch_df$point_id[i] else
+        paste(prev, hatch_df$point_id[i], sep = ",")
+    }
   }
 
-  stop("grandtab_spatial.rds not found. ",
-       "Run data-raw/build_spatial.R to generate the spatial data, ",
-       "or reinstall the grandtab package.", call. = FALSE)
+  list(flowlines = flowlines, points = points, location_meta = location_meta)
+}
+
+# -- Resolve Sacramento River section identifier to location_id -------------
+
+.resolve_sac_section <- function(section) {
+  sec <- tolower(trimws(as.character(section)))
+  # "all" / "a" / "all sections"
+  if (grepl("^a", sec))
+    return(list(id = "sac_all",
+                assoc = c("sac_sec1", "sac_sec2", "sac_sec3", "sac_sec4")))
+  # "lower" / "low" / "l" / 4
+  if (grepl("^l|^4$", sec))
+    return(list(id = "sac_sec4", assoc = "sac_sec4"))
+  s <- suppressWarnings(as.integer(sec))
+  if (!is.na(s) && s %in% 1:3)
+    return(list(id = paste0("sac_sec", s), assoc = paste0("sac_sec", s)))
+  stop(
+    "When location = 'sacramento', section must be 1, 2, 3, \"lower\"/\"l\"/4, or \"all\"/\"a\".",
+    call. = FALSE
+  )
 }
 
 # -- Normalize map location (extends .normalize_location for hatcheries) -----
 
-.normalize_map_location <- function(location) {
+.normalize_map_location <- function(location, section = NULL) {
   if (is.null(location)) return(NULL)
   loc <- tolower(trimws(location))
 
-  # Hatchery patterns — try these first
+  # Hatchery patterns -- try these first
   hatchery_patterns <- list(
-    CNFH = c("^cnfh", "^coleman"),
-    TCFF = c("^tcff", "^tehama"),
-    FRFH = c("^frfh", "^frh", "feather.*hatch"),
-    NFH  = c("^nfh", "^nimbus"),
-    MRH  = c("^mrh", "mokelumne.*hatch", "^mok.*hatch"),
-    MeRH = c("^merh", "merced.*hatch", "^merc.*hatch", "merced.*facil")
+    LSNFH = c("^lsnfh", "livingston", "stone.*hatch"),
+    CNFH  = c("^cnfh", "^coleman", "^col"),
+    TCFF  = c("^tcff", "^tehama", "^tc"),
+    FRFH  = c("^frfh", "^frh", "feather.*hatch"),
+    NFH   = c("^nfh", "^nimbus"),
+    MRH   = c("^mrh", "mokelumne.*hatch", "^mok.*hatch"),
+    MeRH  = c("^merh", "merced.*hatch", "^merc.*hatch", "merced.*facil")
   )
 
   # Associated locations for each hatchery
   hatchery_assoc <- c(
-    CNFH = "battle", TCFF = "sac_sec2",
+    LSNFH = "sac_sec1", CNFH = "battle", TCFF = "sac_sec1",
     FRFH = "feather", NFH = "american",
     MRH = "mokelumne", MeRH = "merced"
   )
@@ -98,10 +138,33 @@
     }
   }
 
-  # Sacramento River mainstem → highlight all 3 sections
-  if (grepl("^sac(ramento)?($|\\s|_|r)", loc) || grepl("^sac_main$", loc)) {
-    return(list(type = "sac_river", id = "sac_river",
-                assoc_location = c("sac_sec1", "sac_sec2", "sac_sec3")))
+  # Sacramento River mainstem -- resolve section or prompt with a menu
+  if (grepl("^sac", loc)) {
+    if (!is.null(section)) {
+      resolved <- .resolve_sac_section(section)
+      return(list(type = "location", id = resolved$id, assoc_location = resolved$assoc))
+    }
+    choice <- utils::menu(
+      choices = c(
+        "1: Keswick to RBDD",
+        "2: RBDD to Princeton Ferry",
+        "3: Princeton Ferry to Sacramento (I St Bridge)",
+        "lower: Lower Sacramento River (below I St Bridge)",
+        "All Sacramento River"
+      ),
+      title = "Select Sacramento River section:"
+    )
+    if (choice == 0) {
+      # Non-interactive: show all Sacramento sections
+      return(list(type = "location", id = "sac_all",
+                  assoc_location = c("sac_sec1", "sac_sec2", "sac_sec3", "sac_sec4")))
+    }
+    if (choice == 5) {
+      return(list(type = "location", id = "sac_all",
+                  assoc_location = c("sac_sec1", "sac_sec2", "sac_sec3", "sac_sec4")))
+    }
+    sec_id <- c("sac_sec1", "sac_sec2", "sac_sec3", "sac_sec4")[choice]
+    return(list(type = "location", id = sec_id, assoc_location = sec_id))
   }
 
   # Bear disambiguation — "bear" alone matches both Bear Creek and Bear River
@@ -120,49 +183,50 @@
   list(type = "location", id = loc_id, assoc_location = loc_id)
 }
 
-# -- Get available runs for a location ---------------------------------------
-
-.get_available_runs <- function(loc_id) {
-  # Sacramento sections map to sac_main for data queries
-  query_id <- .map_loc_to_data_id(loc_id)
-  tables <- names(.location_cols[[query_id]])
-  if (is.null(tables)) return(character(0))
-  runs <- unique(unname(.table_run[tables]))
-  sort(runs)
-}
-
 # Map spatial location_id to get_escapement() location_id
 .map_loc_to_data_id <- function(loc_id) {
   if (loc_id %in% c("sac_sec1", "sac_sec2", "sac_sec3")) return("sac_main")
-  loc_id
+  loc_id  # sac_sec4 (Lower Sacramento) has no escapement data; returns as-is
+}
+
+# Build a human-readable run string for a spatial location_id
+.location_run_label <- function(loc_id) {
+  data_id <- .map_loc_to_data_id(loc_id)
+  tables  <- names(.location_cols[[data_id]])
+  if (is.null(tables) || length(tables) == 0) return("No escapement data")
+  runs <- sort(unique(unname(.table_run[tables])))
+  run_labels <- c(lf = "Late-Fall Run", w = "Winter Run", s = "Spring Run", f = "Fall Run")
+  labels <- run_labels[runs[runs %in% names(run_labels)]]
+  if (length(labels) == 0) return("No escapement data")
+  paste(labels, collapse = "<br/>")
 }
 
 # -- Resolve point features display logic ------------------------------------
 
-.resolve_points <- function(loc_info, show_hatcheries, spatial) {
-  points_sf <- spatial$points
-
-  # Landmarks (e.g. RBDD) are always shown
-  landmarks <- points_sf[points_sf$point_type == "landmark", ]
-  hatcheries <- points_sf[points_sf$point_type == "hatchery", ]
+.resolve_points <- function(loc_info, show_hatcheries, spatial, visible_ids = NULL) {
+  hatcheries <- spatial$points[spatial$points$point_type == "hatchery", ]
 
   if (isFALSE(show_hatcheries)) {
-    return(landmarks)
+    return(hatcheries[0L, ])  # empty
+  }
+
+  # Restrict to hatcheries whose stream is actually on the map
+  if (!is.null(visible_ids)) {
+    hatcheries <- hatcheries[hatcheries$associated_location %in% visible_ids, ]
   }
 
   if (isTRUE(show_hatcheries)) {
-    return(points_sf)
+    return(hatcheries)
   }
 
   # show_hatcheries is NULL — show hatcheries associated with selected location
   if (!is.null(loc_info)) {
     assoc_locs <- loc_info$assoc_location
-    assoc_hatch <- hatcheries[hatcheries$associated_location %in% assoc_locs, ]
-    return(rbind(landmarks, assoc_hatch))
+    return(hatcheries[hatcheries$associated_location %in% assoc_locs, ])
   }
 
-  # Default: show all
-  points_sf
+  # Default: show all hatcheries (already filtered to visible streams)
+  hatcheries
 }
 
 # -- Build leaflet map -------------------------------------------------------
@@ -186,7 +250,11 @@
       leaflet::addPolylines(
         data = lines,
         layerId = ~paste0(location_id, layer_suffix),
-        label = ~display_name,
+        label = ~hover_label,
+        labelOptions = leaflet::labelOptions(
+          style = list("font-size" = "11px", "padding" = "4px 8px"),
+          direction = "auto"
+        ),
         color = color, weight = weight, opacity = opacity,
         highlightOptions = leaflet::highlightOptions(
           color = highlight_color, weight = max(weight + 1, 3),
@@ -201,7 +269,7 @@
       leaflet::addCircleMarkers(
         data = points,
         layerId = ~paste0(location_id, layer_suffix),
-        label = ~display_name,
+        label = ~hover_label,
         radius = 5,
         color = color,
         fillColor = color,
@@ -217,11 +285,19 @@
 .build_leaflet_map <- function(spatial, args) {
   flowlines <- spatial$flowlines
 
+  # Precompute hover tooltip: name + available runs (rendered as HTML)
+  flowlines$hover_label <- lapply(seq_len(nrow(flowlines)), function(i) {
+    htmltools::HTML(paste0(
+      "<b>", flowlines$display_name[i], "</b><br/>",
+      .location_run_label(flowlines$location_id[i])
+    ))
+  })
+
   map <- leaflet::leaflet() |>
     leaflet::addProviderTiles(args$base_map)
 
   # Color scheme
-  default_color   <- "#4A90D9"
+  default_color   <- "#1A6BB5"
   highlight_color <- "#FF6B35"
   muted_color     <- "#CCCCCC"
 
@@ -264,7 +340,7 @@
     }
   } else {
     # No highlighting — show all flowlines in default color
-    map <- .add_flowline_layer(map, flowlines, "", default_color, 2, 0.6,
+    map <- .add_flowline_layer(map, flowlines, "", default_color, 2, 0.85,
                                highlight_color)
 
     # Fit to Central Valley bounds
@@ -274,300 +350,114 @@
       )
   }
 
-  # Point markers (hatcheries and landmarks)
+  # Hatchery markers — permanent abbreviated labels + invisible hover layer
   if (!is.null(args$points_to_show) && nrow(args$points_to_show) > 0) {
-    pts <- args$points_to_show
+    hatch <- args$points_to_show
 
-    # Hatcheries: red
-    hatch <- pts[pts$point_type == "hatchery", ]
-    if (nrow(hatch) > 0) {
-      map <- map |>
-        leaflet::addCircleMarkers(
-          data = hatch,
-          layerId = ~paste0("point_", point_id),
-          label = ~display_name,
-          radius = 7,
-          color = "#E63946",
-          fillColor = "#E63946",
-          fillOpacity = 0.8,
-          stroke = TRUE,
-          weight = 2
-        )
-    }
+    # Map point_id -> short label shown permanently on the map
+    abbrev_map <- c(LSNFH = "LSNFH", CNFH = "CNFH", TCFF = "TCFF", FRFH = "FRH",
+                    NFH   = "NFH",   MRH  = "MRH",  MeRH = "MeRH")
+    hatch$abbrev <- unname(abbrev_map[hatch$point_id])
+    hatch$abbrev[is.na(hatch$abbrev)] <- hatch$point_id[is.na(hatch$abbrev)]
 
-    # Landmarks: dark blue
-    lmk <- pts[pts$point_type == "landmark", ]
-    if (nrow(lmk) > 0) {
-      map <- map |>
-        leaflet::addCircleMarkers(
-          data = lmk,
-          layerId = ~paste0("point_", point_id),
-          label = ~display_name,
-          radius = 7,
-          color = "#2B4570",
-          fillColor = "#2B4570",
-          fillOpacity = 0.8,
-          stroke = TRUE,
-          weight = 2
+    # Hover tooltip: full name + runs with returns to that hatchery
+    hatch$hover_label <- lapply(seq_len(nrow(hatch)), function(i) {
+      run_str <- .location_run_label(hatch$associated_location[i])
+      htmltools::HTML(paste0(
+        "<b>", hatch$display_name[i], "</b><br/>", run_str
+      ))
+    })
+
+    # Per-feature label options: TCFF appears to the left, all others to the right.
+    # Leaflet uses margin-left for right-direction labels, margin-right for left.
+    label_opts <- lapply(seq_len(nrow(hatch)), function(i) {
+      is_left <- hatch$point_id[i] == "TCFF"
+      leaflet::labelOptions(
+        permanent = TRUE,
+        noHide    = TRUE,
+        direction = if (is_left) "left" else "right",
+        style     = list(
+          "font-size"   = "11px",
+          "font-weight" = "bold",
+          "color"       = "#000000",
+          "text-shadow" = paste(
+            "-1px -1px 0 #E63946,",
+            " 1px -1px 0 #E63946,",
+            "-1px  1px 0 #E63946,",
+            " 1px  1px 0 #E63946"
+          ),
+          "border"      = "none",
+          "box-shadow"  = "none",
+          "background"  = "transparent",
+          "margin-left" = if (is_left) "0px" else "2px",
+          "margin-right"= if (is_left) "2px" else "0px"
         )
-    }
+      )
+    })
+
+    # Visible markers with permanent abbreviated labels
+    map <- map |>
+      leaflet::addCircleMarkers(
+        data        = hatch,
+        layerId     = ~paste0("point_", point_id),
+        label       = ~abbrev,
+        labelOptions = label_opts,
+        radius      = 3,
+        color       = "#E63946",
+        fillColor   = "#E63946",
+        fillOpacity = 0.9,
+        stroke      = TRUE,
+        weight      = 1
+      )
+
+    # Invisible overlay markers — capture hover over the dot to show full name + runs
+    map <- map |>
+      leaflet::addCircleMarkers(
+        data         = hatch,
+        layerId      = ~paste0("hover_", point_id),
+        label        = ~hover_label,
+        labelOptions = leaflet::labelOptions(
+          style = list("font-size" = "11px", "padding" = "4px 8px")
+        ),
+        radius      = 8,
+        fillOpacity = 0,
+        opacity     = 0,
+        stroke      = FALSE
+      )
+
+    # Wire abbreviation label elements to also trigger the hover tooltip.
+    # Uses the 'tooltipopen' event so the listener is attached the instant each
+    # permanent label is added to the DOM — more reliable than setTimeout.
+    map <- htmlwidgets::onRender(map, "
+      function(el, x) {
+        var map = this;
+        map.on('tooltipopen', function(e) {
+          if (!e.tooltip || !e.tooltip.options.permanent) return;
+          var layer = e.layer;
+          var lid = (layer.options && layer.options.layerId) || '';
+          if (lid.indexOf('point_') !== 0) return;
+          var hoverLid = 'hover_' + lid.slice(6);
+          var labelEl = e.tooltip.getElement();
+          if (!labelEl || labelEl._hoverBound) return;
+          labelEl._hoverBound = true;
+          labelEl.addEventListener('mouseenter', function() {
+            map.eachLayer(function(l) {
+              if ((l.options && l.options.layerId) === hoverLid)
+                l.openTooltip();
+            });
+          });
+          labelEl.addEventListener('mouseleave', function() {
+            map.eachLayer(function(l) {
+              if ((l.options && l.options.layerId) === hoverLid)
+                l.closeTooltip();
+            });
+          });
+        });
+      }
+    ")
   }
 
   map
-}
-
-# -- Extract plot data from get_escapement() ---------------------------------
-
-.extract_plot_data <- function(loc_id, run_code, run_years) {
-  run_prefix <- switch(run_code, lf = "lf", w = "w", s = "s", f = "f")
-  run_label  <- switch(run_code,
-    lf = "Late-Fall", w = "Winter", s = "Spring", f = "Fall"
-  )
-
-  tbl <- tryCatch(
-    get_escapement(run = run_code, location = loc_id, run_years = run_years),
-    error = function(e) NULL
-  )
-
-  if (is.null(tbl)) return(NULL)
-
-  # Handle list results (e.g., sac_main fall returns multiple tables)
-  if (is.list(tbl) && !is.data.frame(tbl)) {
-    # Combine all data frames
-    tbl <- tryCatch({
-      dfs <- Filter(is.data.frame, tbl)
-      if (length(dfs) == 0) return(NULL)
-      # Use the first one that has a total column
-      for (df in dfs) {
-        total_col <- grep(paste0("^", run_prefix, "_.*total"), names(df),
-                          value = TRUE, ignore.case = TRUE)
-        if (length(total_col) > 0) {
-          tbl <- df
-          break
-        }
-      }
-      if (is.list(tbl) && !is.data.frame(tbl)) tbl <- dfs[[1]]
-      tbl
-    }, error = function(e) NULL)
-    if (is.null(tbl)) return(NULL)
-  }
-
-  # Find "total" column or first data column
-  total_col <- grep(paste0("^", run_prefix, "_.*total$"), names(tbl),
-                    value = TRUE, ignore.case = TRUE)
-  if (length(total_col) == 0) {
-    # Fall back to first data column (not run_year, not spawn_period)
-    data_cols <- setdiff(names(tbl),
-      c("run_year", grep("spawn_period|provisional", names(tbl), value = TRUE)))
-    if (length(data_cols) == 0) return(NULL)
-    total_col <- data_cols[1]
-  } else {
-    total_col <- total_col[1]
-  }
-
-  # Parse year and escapement
-  year <- suppressWarnings(as.numeric(gsub("\\[|\\]", "", tbl$run_year)))
-  escapement <- suppressWarnings(as.numeric(gsub(",", "", tbl[[total_col]])))
-
-  valid <- !is.na(year)
-  if (sum(valid) == 0) return(NULL)
-
-  data.frame(
-    year       = year[valid],
-    escapement = escapement[valid],
-    run        = run_label,
-    is_missing = is.na(escapement[valid]),
-    stringsAsFactors = FALSE
-  )
-}
-
-# -- Build escapement plot ---------------------------------------------------
-
-.build_escapement_plot <- function(plot_data, title) {
-  run_colors <- c(
-    "Late-Fall" = "#1B9E77",
-    "Winter"    = "#D95F02",
-    "Spring"    = "#7570B3",
-    "Fall"      = "#E7298A"
-  )
-
-  present <- plot_data[!plot_data$is_missing, ]
-  missing <- plot_data[plot_data$is_missing, ]
-
-  p <- ggplot2::ggplot() +
-    ggplot2::theme_minimal()
-
-  if (nrow(present) > 0) {
-    p <- p +
-      ggplot2::geom_line(
-        data = present,
-        ggplot2::aes(x = .data$year, y = .data$escapement, color = .data$run),
-        linewidth = 0.8
-      ) +
-      ggplot2::geom_point(
-        data = present,
-        ggplot2::aes(x = .data$year, y = .data$escapement, color = .data$run),
-        size = 1.5
-      )
-  }
-
-  if (nrow(missing) > 0) {
-    # Place X markers at y = 0 for missing data
-    missing$escapement <- 0
-    p <- p +
-      ggplot2::geom_point(
-        data = missing,
-        ggplot2::aes(x = .data$year, y = .data$escapement),
-        shape = 4, size = 2, color = "gray50"
-      )
-  }
-
-  p <- p +
-    ggplot2::scale_color_manual(values = run_colors, name = "Run") +
-    ggplot2::labs(
-      title = title,
-      x = "Year",
-      y = "Escapement"
-    ) +
-    ggplot2::theme(
-      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"),
-      legend.position = "bottom"
-    )
-
-  p
-}
-
-# -- Plot escapement for a single location -----------------------------------
-
-.plot_location_escapement <- function(loc_id, runs, run_years) {
-  meta <- tryCatch(.load_spatial()$location_meta, error = function(e) NULL)
-  display <- if (!is.null(meta)) {
-    nm <- meta$display_name[meta$location_id == loc_id]
-    if (length(nm) > 0) nm[1] else loc_id
-  } else {
-    loc_id
-  }
-
-  for (r in runs) {
-    pd <- .extract_plot_data(loc_id, r, run_years)
-    if (is.null(pd) || nrow(pd) == 0) next
-
-    run_label <- switch(r,
-      lf = "Late-Fall", w = "Winter", s = "Spring", f = "Fall"
-    )
-    title <- paste0(display, " - ", run_label, " Run Escapement")
-    p <- .build_escapement_plot(pd, title)
-    grDevices::dev.new()
-    print(p)
-  }
-}
-
-# -- Plot system summary -----------------------------------------------------
-
-.plot_system_summary <- function(river_system, run, run_years) {
-  rs_label <- switch(river_system,
-    sacramento = "Sacramento", san_joaquin = "San Joaquin",
-    feather = "Feather"
-  )
-
-  runs_to_plot <- if (!is.null(run)) run else c("lf", "w", "s", "f")
-
-  for (r in runs_to_plot) {
-    tbl <- tryCatch(
-      get_escapement(river_system = river_system, run = r, summary = TRUE,
-                     run_years = run_years),
-      error = function(e) NULL
-    )
-    if (is.null(tbl)) next
-
-    run_label <- switch(r,
-      lf = "Late-Fall", w = "Winter", s = "Spring", f = "Fall"
-    )
-
-    # Build plot data from summary table
-    year <- suppressWarnings(as.numeric(gsub("\\[|\\]", "", tbl$run_year)))
-    total_col <- grep("total$", names(tbl), value = TRUE, ignore.case = TRUE)
-    if (length(total_col) == 0) next
-    escapement <- suppressWarnings(as.numeric(gsub(",", "", tbl[[total_col[1]]])))
-
-    valid <- !is.na(year)
-    if (sum(valid) == 0) next
-
-    pd <- data.frame(
-      year       = year[valid],
-      escapement = escapement[valid],
-      run        = run_label,
-      is_missing = is.na(escapement[valid]),
-      stringsAsFactors = FALSE
-    )
-
-    title <- paste0(rs_label, " River System - ", run_label, " Run Escapement")
-    p <- .build_escapement_plot(pd, title)
-    grDevices::dev.new()
-    print(p)
-  }
-}
-
-# -- Plot CV summary ---------------------------------------------------------
-
-.plot_cv_summary <- function(run, run_years) {
-  runs_to_plot <- if (!is.null(run)) run else c("lf", "w", "s", "f")
-
-  for (r in runs_to_plot) {
-    tbl <- tryCatch(
-      get_escapement(run = r, summary = TRUE, run_years = run_years),
-      error = function(e) NULL
-    )
-    if (is.null(tbl)) next
-
-    run_label <- switch(r,
-      lf = "Late-Fall", w = "Winter", s = "Spring", f = "Fall"
-    )
-
-    # Extract year and total
-    year_col <- if ("run_year" %in% names(tbl)) "run_year" else names(tbl)[1]
-    year <- suppressWarnings(as.numeric(gsub("\\[|\\]", "", tbl[[year_col]])))
-    total_col <- grep(paste0("^", r, "_.*total$"), names(tbl), value = TRUE)
-    if (length(total_col) == 0) {
-      total_col <- grep("total$", names(tbl), value = TRUE, ignore.case = TRUE)
-    }
-    if (length(total_col) == 0) next
-    escapement <- suppressWarnings(as.numeric(gsub(",", "", tbl[[total_col[1]]])))
-
-    valid <- !is.na(year)
-    if (sum(valid) == 0) next
-
-    pd <- data.frame(
-      year       = year[valid],
-      escapement = escapement[valid],
-      run        = run_label,
-      is_missing = is.na(escapement[valid]),
-      stringsAsFactors = FALSE
-    )
-
-    title <- paste0("Central Valley - ", run_label, " Run Escapement")
-    p <- .build_escapement_plot(pd, title)
-    grDevices::dev.new()
-    print(p)
-  }
-}
-
-# -- Plot routing ------------------------------------------------------------
-
-.plot_escapement <- function(args) {
-  if (!is.null(args$loc_info)) {
-    # Map to data location_id (e.g. sac sections -> sac_main)
-    loc_id <- .map_loc_to_data_id(args$loc_info$assoc_location[1])
-    runs <- .get_available_runs(loc_id)
-    if (!is.null(args$run)) runs <- intersect(runs, args$run)
-    if (length(runs) > 0) {
-      .plot_location_escapement(loc_id, runs, args$run_years)
-    }
-  } else if (!is.null(args$river_system)) {
-    .plot_system_summary(args$river_system, args$run, args$run_years)
-  } else {
-    .plot_cv_summary(args$run, args$run_years)
-  }
 }
 
 # -- Shiny gadget wrapping the leaflet map -----------------------------------
@@ -576,6 +466,7 @@
   initial_map <- .build_leaflet_map(spatial, args)
 
   ui <- shiny::fillPage(
+    shiny::tags$style(".leaflet-tooltip::before { display: none !important; }"),
     leaflet::leafletOutput("map", height = "100%")
   )
 
@@ -584,44 +475,6 @@
       initial_map
     })
 
-    # Click on polyline -> open escapement plot
-    shiny::observeEvent(input$map_shape_click, {
-      click_id <- input$map_shape_click$id
-      if (is.null(click_id)) return()
-      loc_id <- sub("_highlight$", "", click_id)
-
-      # Map to data location_id (e.g. sac_sec1 -> sac_main)
-      data_id <- .map_loc_to_data_id(loc_id)
-      available_runs <- .get_available_runs(data_id)
-      if (!is.null(args$run)) {
-        available_runs <- intersect(available_runs, args$run)
-      }
-      if (length(available_runs) > 0) {
-        .plot_location_escapement(data_id, available_runs, args$run_years)
-      }
-    })
-
-    # Click on point marker -> open escapement plot for associated location
-    shiny::observeEvent(input$map_marker_click, {
-      click_id <- input$map_marker_click$id
-      if (is.null(click_id)) return()
-      pt_id <- sub("^point_", "", click_id)
-
-      loc_id <- spatial$points$associated_location[
-        spatial$points$point_id == pt_id
-      ]
-      if (length(loc_id) == 0) return()
-
-      # Map to data location_id (e.g. sac_sec2 -> sac_main)
-      data_id <- .map_loc_to_data_id(loc_id)
-      available_runs <- .get_available_runs(data_id)
-      if (!is.null(args$run)) {
-        available_runs <- intersect(available_runs, args$run)
-      }
-      if (length(available_runs) > 0) {
-        .plot_location_escapement(data_id, available_runs, args$run_years)
-      }
-    })
   }
 
   shiny::runGadget(ui, server, viewer = shiny::paneViewer(minHeight = 400))
@@ -634,30 +487,39 @@
 #' Opens an interactive leaflet map of the Sacramento-San Joaquin River system
 #' showing all GrandTab Chinook salmon monitoring locations. Supports
 #' highlighting specific rivers, hatcheries, river systems, or fall run
-#' sections. Clicking a river on the map opens an escapement time-series plot.
+#' sections. Hovering over a river shows a tooltip with the available salmon
+#' runs for that location.
 #'
-#' @param run Character. Salmon run to filter: \code{"lf"} (late-fall),
-#'   \code{"w"} (winter), \code{"s"} (spring), \code{"f"} (fall), or
-#'   \code{NULL} (default). Affects which runs are plotted on click.
+#' @param run Character. Filter map to rivers with data for one or more runs.
+#'   Accepts a scalar or vector of run names/codes: \code{"fall"} / \code{"f"},
+#'   \code{"spring"} / \code{"s"}, \code{"winter"} / \code{"w"}, or
+#'   \code{"late-fall"} / \code{"lf"}. A stream is shown if it has data for
+#'   any of the specified runs. Default \code{NULL} shows all rivers.
 #' @param river_system Character. \code{"sacramento"} or \code{"san_joaquin"}.
 #'   Highlights flowlines for that system and mutes the other.
 #' @param location Character. A river/creek or hatchery name. Flexible
 #'   matching supports short names (e.g. \code{"battle"}, \code{"Coleman"},
 #'   \code{"CNFH"}). The matched location is highlighted on the map.
-#' @param section Integer 1--4. Fall run geographic section. Highlights
-#'   flowlines in that section.
-#' @param run_years Numeric vector. Filter escapement plots to these years.
-#' @param plot_escapement Logical. If \code{TRUE}, immediately open escapement
-#'   plots based on the current filter arguments. Default \code{FALSE}.
+#' @param section When \code{location = "sacramento"}: one of \code{1}, \code{2},
+#'   \code{3} (numeric or character), \code{"lower"}, or \code{"all"} to go
+#'   directly to that Sacramento River section without a menu. Otherwise:
+#'   integer 1--4 selecting a fall-run geographic section to highlight across
+#'   the whole map.
 #' @param base_map Character. Tile provider for the base map. One of
 #'   \code{"CartoDB.Positron"} (default), \code{"Esri.WorldImagery"},
 #'   \code{"Esri.WorldTopoMap"}, or \code{"OpenTopoMap"}.
+#' @param hatchery Logical or \code{NULL}. Filter displayed streams by return
+#'   type. \code{TRUE} shows only streams with hatchery returns; \code{FALSE}
+#'   shows only streams with in-river returns. If \code{location} is a hatchery
+#'   and \code{hatchery = FALSE}, an error is returned. If \code{hatchery = TRUE}
+#'   and the specified location has no hatchery returns, an error is returned.
+#'   Default \code{NULL} shows all streams.
 #' @param show_hatcheries Logical or \code{NULL}. Whether to display hatchery
-#'   markers. Default \code{NULL} shows hatcheries only when the selected
-#'   location has one. Set \code{TRUE} to show all, \code{FALSE} to hide.
+#'   markers. Default \code{TRUE} shows all hatcheries whose stream is visible
+#'   on the map. \code{FALSE} hides all markers. \code{NULL} shows only the
+#'   hatchery associated with the selected location.
 #'
-#' @return Invisible \code{NULL}. Called for its side effects (interactive map
-#'   and optional plots).
+#' @return Invisible \code{NULL}. Called for its side effect (interactive map).
 #'
 #' @examples
 #' \dontrun{
@@ -676,52 +538,140 @@
 #' # Section 1 rivers highlighted
 #' map_grandtab(section = 1)
 #'
-#' # Open plots immediately for Feather River
-#' map_grandtab(location = "feather", plot_escapement = TRUE)
+#' # Only rivers with fall run data
+#' map_grandtab(run = "fall")
 #' }
 #' @export
 map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
-                          section = NULL, run_years = NULL,
-                          plot_escapement = FALSE,
+                          section = NULL, hatchery = NULL,
                           base_map = c("CartoDB.Positron", "Esri.WorldImagery",
                                        "Esri.WorldTopoMap", "OpenTopoMap"),
-                          show_hatcheries = NULL) {
+                          show_hatcheries = TRUE) {
+
+  if (!is.null(hatchery) && !is.logical(hatchery))
+    stop("'hatchery' must be TRUE, FALSE, or NULL.", call. = FALSE)
 
   .check_map_deps()
 
   spatial <- .load_spatial()
 
-  # Normalize inputs
-  run_norm <- .normalize_run(run)
-  rs_norm  <- .normalize_river_system(river_system)
-  loc_info <- .normalize_map_location(location)
-  base_map <- match.arg(base_map)
+  # Filter flowlines to streams that have data for any of the requested runs
+  run_norm <- if (!is.null(run)) vapply(run, .normalize_run, character(1)) else NULL
 
-  if (!is.null(section)) {
-    section <- as.integer(section)
-    if (!section %in% 1:4) {
-      stop("'section' must be 1-4.", call. = FALSE)
+  if (!is.null(run_norm)) {
+    keep <- vapply(spatial$flowlines$location_id, function(lid) {
+      data_id <- .map_loc_to_data_id(lid)
+      tables  <- names(.location_cols[[data_id]])
+      if (is.null(tables) || length(tables) == 0) return(FALSE)
+      any(.table_run[tables] %in% run_norm, na.rm = TRUE)
+    }, logical(1))
+    spatial$flowlines <- spatial$flowlines[keep, ]
+    if (nrow(spatial$flowlines) == 0) {
+      warning("No streams found for the specified run filter. Displaying blank map.",
+              call. = FALSE)
     }
   }
 
+  # Filter flowlines by hatchery origin flag
+  if (!is.null(hatchery)) {
+    suffix <- if (isTRUE(hatchery)) .hatch_suffix_re else "_inr$"
+    keep <- vapply(spatial$flowlines$location_id, function(lid) {
+      data_id <- .map_loc_to_data_id(lid)
+      .location_has_origin(data_id, suffix)
+    }, logical(1))
+    spatial$flowlines <- spatial$flowlines[keep, ]
+    if (nrow(spatial$flowlines) == 0) {
+      warning("No streams found for the specified hatchery filter. Displaying blank map.",
+              call. = FALSE)
+    }
+  }
+
+  # Determine if this is a Sacramento-specific request (section has different
+  # meaning there: 1/2/3/"lower" instead of fall monitoring section 1-4)
+  is_sac <- !is.null(location) &&
+    grepl("^sac", tolower(trimws(location)))
+
+  # Normalize inputs
+  rs_norm  <- .normalize_river_system(river_system)
+  # For Sacramento, pass section so .normalize_map_location() can resolve it
+  # directly (or show a menu if section is NULL).
+  loc_info <- .normalize_map_location(location, if (is_sac) section else NULL)
+
+  # For Sacramento River locations, restrict visible flowlines to Sacramento system
+  if (!is.null(loc_info) && grepl("^sac", loc_info$id)) {
+    spatial$flowlines <- spatial$flowlines[spatial$flowlines$river_system == "sacramento", ]
+  }
+
+  # Hatchery validation against location type
+  if (!is.null(hatchery) && !is.null(loc_info)) {
+    if (loc_info$type == "hatchery" && isFALSE(hatchery)) {
+      stop(
+        'hatchery cannot be FALSE when location is a hatchery.',
+        call. = FALSE
+      )
+    }
+    if (loc_info$type == "location" && isTRUE(hatchery)) {
+      assoc_locs <- loc_info$assoc_location
+      meta       <- spatial$location_meta
+      has_hatch  <- any(meta$has_hatchery[meta$location_id %in% assoc_locs])
+      if (!has_hatch) {
+        dn_vals <- meta$display_name[meta$location_id %in% assoc_locs]
+        dn <- if (length(dn_vals) == 1) dn_vals else loc_info$id
+        stop("There is no hatchery on ", dn, ".", call. = FALSE)
+      }
+    }
+  }
+  bm_valid <- c("CartoDB.Positron", "Esri.WorldImagery",
+                "Esri.WorldTopoMap", "OpenTopoMap")
+  if (length(base_map) == 1) {
+    m <- pmatch(tolower(base_map), tolower(bm_valid))
+    if (!is.na(m)) base_map <- bm_valid[m]
+  }
+  base_map <- match.arg(base_map, bm_valid)
+
+  # For non-Sacramento requests, validate section as a fall monitoring section
+  # (1-4). When location is Sacramento, section was consumed above.
+  map_section <- NULL
+  if (!is_sac && !is.null(section)) {
+    sec_str   <- trimws(as.character(section))
+    roman_map <- c(I = 1L, II = 2L, III = 3L, IV = 4L)
+    roman_hit <- roman_map[toupper(sec_str)]
+    if (!is.na(roman_hit)) {
+      map_section <- unname(roman_hit)
+    } else {
+      s <- suppressWarnings(as.integer(sec_str))
+      if (is.na(s) || as.character(s) != sec_str || !s %in% 1:4) {
+        stop("'section' must be 1, 2, 3, or 4 (or Roman numeral I-IV).",
+             call. = FALSE)
+      }
+      map_section <- s
+    }
+  }
+
+  # Compute which location_ids are visible on the map (used to filter hatcheries)
+  flowlines <- spatial$flowlines
+  visible_ids <- if (!is.null(loc_info)) {
+    loc_info$assoc_location
+  } else if (!is.null(rs_norm)) {
+    flowlines$location_id[flowlines$river_system == rs_norm]
+  } else if (!is.null(map_section)) {
+    flowlines$location_id[!is.na(flowlines$fall_section) &
+                            flowlines$fall_section == map_section]
+  } else {
+    NULL  # all streams visible
+  }
+
   # Resolve point features to display
-  points_to_show <- .resolve_points(loc_info, show_hatcheries, spatial)
+  points_to_show <- .resolve_points(loc_info, show_hatcheries, spatial, visible_ids)
 
   # Bundle args for passing to helpers
   args <- list(
-    run              = run_norm,
     river_system     = rs_norm,
     loc_info         = loc_info,
-    section          = section,
-    run_years        = run_years,
+    section          = map_section,
     base_map         = base_map,
     points_to_show   = points_to_show
   )
-
-  # Open plots if requested
-  if (isTRUE(plot_escapement)) {
-    .plot_escapement(args)
-  }
 
   # Launch interactive map
   .map_gadget(spatial, args)

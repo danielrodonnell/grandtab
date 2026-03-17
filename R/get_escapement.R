@@ -272,7 +272,8 @@
   thomes     = list(`9` = c("Thomes Ck")),
   coyote     = list(`9` = c("Coyote Ck")),
   stoney     = list(`9` = c("Stoney Ck")),
-  singer     = list(`9` = c("Singer Ck"))
+  singer     = list(`9` = c("Singer Ck")),
+  tcff       = list(`9` = c("TCFF"))
 )
 
 # -- Constants ----------------------------------------------------------------
@@ -310,9 +311,28 @@
   }, character(1), USE.NAMES = FALSE)
 }
 
+.bear_disambiguate <- function() {
+  choices <- c(
+    "Bear River  (Feather River System)",
+    "Bear Creek  (Sacramento River System)"
+  )
+  if (!interactive())
+    stop("'bear' is ambiguous. Use 'bear river' (Feather River System) or ",
+         "'bear creek' (Sacramento River System).", call. = FALSE)
+  selected <- utils::select.list(choices, multiple = FALSE,
+    title = "Which Bear location?")
+  if (length(selected) == 0 || nchar(selected) == 0) return(invisible(NULL))
+  if (grepl("River", selected)) "bear river" else "bear creek"
+}
+
 .normalize_location <- function(loc) {
   if (is.null(loc)) return(NULL)
   loc <- tolower(trimws(loc))
+
+  # Intercept bare "bear" before pattern matching and prompt user to choose.
+  loc <- vapply(loc, function(l) {
+    if (l == "bear") .bear_disambiguate() else l
+  }, character(1), USE.NAMES = FALSE)
 
   patterns <- c(
     sac_main     = "^sac|sacra.*main|mainstem|main.*stem",
@@ -329,7 +349,7 @@
     butte        = "^but",
     yuba         = "^yub",
     american     = "^amer",
-    bear_r       = "^bear$|bear.*riv",
+    bear_r       = "bear.*riv",
     bear_ck      = "bear.*cr|bear.*ck",
     dry          = "^dry",
     natomas      = "^nat",
@@ -352,7 +372,8 @@
     thomes       = "^tho",
     coyote       = "^coy",
     stoney       = "^ston",
-    singer       = "^sing"
+    singer       = "^sing",
+    san_joaquin  = "^san|^sj"
   )
 
   vapply(loc, function(l) {
@@ -365,6 +386,301 @@
            paste(hits, collapse = ", "), ". Be more specific.", call. = FALSE)
     hits
   }, character(1), USE.NAMES = FALSE)
+}
+
+
+.location_display_names <- c(
+  sac_main     = "Sacramento River",  battle      = "Battle Creek",
+  clear        = "Clear Creek",       cottonwood  = "Cottonwood Creek",
+  salt         = "Salt Creek",        craig       = "Craig Creek",
+  feather      = "Feather River",     antelope    = "Antelope Creek",
+  mill         = "Mill Creek",        deer        = "Deer Creek",
+  big_chico    = "Big Chico Creek",   butte       = "Butte Creek",
+  yuba         = "Yuba River",        american    = "American River",
+  bear_r       = "Bear River",        bear_ck     = "Bear Creek",
+  dry          = "Dry Creek",         natomas     = "Natomas Drain",
+  cosumnes     = "Cosumnes River",    mokelumne   = "Mokelumne River",
+  stanislaus   = "Stanislaus River",  tuolumne    = "Tuolumne River",
+  merced       = "Merced River",      calaveras   = "Calaveras River",
+  spring_gulch = "Spring Gulch",      china_gulch = "China Gulch",
+  olney        = "Olney Creek",       paynes      = "Paynes Creek",
+  cow          = "Cow Creek",         ash         = "Ash Creek",
+  stillwater   = "Stillwater Creek",  inks        = "Inks Creek",
+  dye          = "Dye Creek",         toomes      = "Toomes Creek",
+  thomes       = "Thomes Creek",      coyote      = "Coyote Creek",
+  stoney       = "Stoney Creek",      singer      = "Singer Creek",
+  san_joaquin  = "San Joaquin River", tcff        = "Tehama-Colusa Fish Facility"
+)
+
+.hatchery_patterns <- list(
+  lsnfh = list(assoc_loc = "sac_main", trans_loc = NULL,
+               col_suffix = "_lsnfh$",
+               valid_runs = c("w"),
+               display    = "Livingston Stone National Fish Hatchery"),
+  cnfh = list(assoc_loc = "battle",    trans_loc = "sac_main",
+              col_suffix = "_cnfh$",
+              valid_runs = c("lf", "f"),
+              display    = "Coleman National Fish Hatchery"),
+  tcff = list(assoc_loc = "tcff",      trans_loc = "sac_main",
+              col_suffix = "_tcff$",
+              valid_runs = c("f"),
+              display    = "Tehama-Colusa Fish Facility"),
+  frh  = list(assoc_loc = "feather",   trans_loc = NULL,
+              col_suffix = "_feather_hatch$",
+              valid_runs = c("lf", "s", "f"),
+              display    = "Feather River Hatchery"),
+  nfh  = list(assoc_loc = "american",  trans_loc = NULL,
+              col_suffix = "_nimbus_hatch$",
+              valid_runs = c("f"),
+              display    = "Nimbus Hatchery"),
+  mrh  = list(assoc_loc = "mokelumne", trans_loc = NULL,
+              col_suffix = "_mokelumne_hatch$",
+              valid_runs = c("f"),
+              display    = "Mokelumne River Hatchery"),
+  merh = list(assoc_loc = "merced",    trans_loc = NULL,
+              col_suffix = "_merced_hatch$",
+              valid_runs = c("f"),
+              display    = "Merced River Hatchery")
+)
+
+# Build a location phrase: prep + optional "the" + display name.
+# "the" is added only when the name ends in "River".
+# Use prep="in"  for escapement / hatchery-return errors.
+# Use prep="on"  for hatchery-presence errors ("no hatchery on X").
+.loc_phrase <- function(display_name, prep = "in") {
+  has_the <- grepl("[Rr]iver$", display_name)
+  paste0(prep, if (has_the) " the " else " ", display_name)
+}
+
+.resolve_hatchery <- function(loc_str) {
+  l <- tolower(trimws(loc_str))
+  patterns <- c(
+    lsnfh = "^lsnfh$|livingston|stone.*hatch",
+    cnfh  = "^cnfh$|coleman",
+    tcff  = "^tcff$|tehama",
+    frh   = "^frh$|feather.*hatch|hatch.*feather",
+    nfh   = "^nfh$|nimbus",
+    mrh   = "^mrh$|mokelumne.*hatch|hatch.*mok",
+    merh  = "^merh$|merced.*hatch|hatch.*merced"
+  )
+  for (key in names(patterns)) {
+    if (grepl(patterns[[key]], l)) return(.hatchery_patterns[[key]])
+  }
+  NULL
+}
+
+# Return the hatchery display name(s) associated with a loc_norm, or NULL.
+.location_hatchery_display <- function(loc_norm) {
+  matches <- Filter(function(h) h$assoc_loc == loc_norm, .hatchery_patterns)
+  if (length(matches) == 0) return(NULL)
+  paste(vapply(matches, `[[`, character(1), "display"), collapse = " and ")
+}
+
+# Return display names of hatcheries that have transfer columns at loc_norm
+# for the given run(s), using the column-metadata structures (no data fetch).
+.find_transfer_displays <- function(loc_norm, run_norm = NULL) {
+  tables <- .location_cols[[loc_norm]]
+  if (is.null(tables)) return(character(0))
+  if (!is.null(run_norm) && !identical(run_norm, "all")) {
+    keep   <- names(tables)[.table_run[names(tables)] %in% run_norm]
+    tables <- tables[keep]
+  }
+  hatch_names <- character(0)
+  for (tbl_key in names(tables)) {
+    snake_cols <- unname(.col_maps[[tbl_key]][tables[[tbl_key]]])
+    trans_cols <- snake_cols[!is.na(snake_cols) & grepl("_trans_", snake_cols)]
+    for (col in unique(trans_cols)) {
+      for (h in .hatchery_patterns) {
+        if (grepl(h$col_suffix, col)) {
+          hatch_names <- c(hatch_names, h$display)
+          break
+        }
+      }
+    }
+  }
+  unique(hatch_names)
+}
+
+# Detect which hatcheries have return (non-transfer) columns in a result object.
+.detect_hatcheries_in_result <- function(raw) {
+  all_cols <- if (is.data.frame(raw)) {
+    names(raw)
+  } else if (is.list(raw)) {
+    unlist(lapply(raw, function(t) if (is.data.frame(t)) names(t) else character(0)))
+  } else character(0)
+  hatch_display <- character(0)
+  for (h in .hatchery_patterns) {
+    ret_cols <- all_cols[grepl(h$col_suffix, all_cols) & !grepl("_trans_", all_cols)]
+    if (length(ret_cols) > 0) hatch_display <- c(hatch_display, h$display)
+  }
+  unique(hatch_display)
+}
+
+.location_has_origin <- function(loc_norm, suffix, run_norm = NULL) {
+  tables <- .location_cols[[loc_norm]]
+  if (is.null(tables)) return(FALSE)
+  if (!is.null(run_norm)) {
+    keep <- names(tables)[.table_run[names(tables)] %in% run_norm]
+    tables <- tables[keep]
+  }
+  any(vapply(names(tables), function(tbl_key) {
+    raw_cols   <- tables[[tbl_key]]
+    col_map    <- .col_maps[[tbl_key]]
+    snake_cols <- unname(col_map[raw_cols])
+    any(grepl(suffix, snake_cols), na.rm = TRUE)
+  }, logical(1)))
+}
+
+.hatch_suffix_re <- "(_hatch|_cnfh|_tcff|_lsnfh)$"
+
+.location_has_hatchery <- function(loc_norm, run_norm = NULL) {
+  # Exclude _trans_ columns: they are transfers to hatcheries, not hatchery
+  # returns, and hatchery=TRUE does not include them.
+  tables <- .location_cols[[loc_norm]]
+  if (is.null(tables)) return(FALSE)
+  if (!is.null(run_norm)) {
+    keep   <- names(tables)[.table_run[names(tables)] %in% run_norm]
+    tables <- tables[keep]
+  }
+  any(vapply(names(tables), function(tbl_key) {
+    raw_cols   <- tables[[tbl_key]]
+    col_map    <- .col_maps[[tbl_key]]
+    snake_cols <- unname(col_map[raw_cols])
+    any(grepl(.hatch_suffix_re, snake_cols) & !grepl("_trans_", snake_cols),
+        na.rm = TRUE)
+  }, logical(1)))
+}
+
+.filter_by_origin <- function(result, hatchery) {
+  if (is.null(hatchery)) return(result)
+  suffix <- if (isFALSE(hatchery)) "_inr$" else .hatch_suffix_re
+  filter_tbl <- function(tbl) {
+    if (!is.data.frame(tbl)) return(tbl)
+    meta  <- grepl("run_year|spawn_period|provisional", names(tbl))
+    match <- grepl(suffix, names(tbl))
+    # hatchery=TRUE: exclude transfer columns (not hatchery-origin fish)
+    # hatchery=FALSE (in-river): include transfer columns
+    if (isTRUE(hatchery))  match <- match & !grepl("_trans_", names(tbl))
+    if (isFALSE(hatchery)) match <- match | grepl("_trans_",  names(tbl))
+    tbl[, meta | match, drop = FALSE]
+  }
+  if (is.data.frame(result)) return(filter_tbl(result))
+  if (is.list(result))       return(lapply(result, filter_tbl))
+  result
+}
+
+# Raise an informative error if a filtered result contains no data columns
+# (i.e. only run_year / spawn_period / provisional_data remain).
+.assert_has_data <- function(result, hatchery, run_norm, rs_norm, loc_norm,
+                             unfiltered = NULL, selected_hatch_display = NULL) {
+  if (is.null(hatchery)) return(invisible(NULL))
+
+  meta_re  <- "run_year|spawn_period|provisional"
+  has_data <- function(tbl) is.data.frame(tbl) && any(!grepl(meta_re, names(tbl)))
+
+  empty <- if (is.data.frame(result)) !has_data(result)
+           else if (is.list(result))  !any(vapply(result, has_data, logical(1)))
+           else FALSE
+
+  if (!empty) return(invisible(NULL))
+
+  type_str   <- if (isTRUE(hatchery)) "hatchery" else "in-river"
+  run_labels <- c(lf = "Late-Fall Run", w = "Winter Run",
+                  s  = "Spring Run",    f  = "Fall Run")
+  run_str <- if (!is.null(run_norm) && !identical(run_norm, "all")) {
+    known <- run_norm[run_norm %in% names(run_labels)]
+    if (length(known) > 0) paste(unname(run_labels[known]), collapse = " or ")
+    else NULL
+  } else NULL
+
+  loc_str        <- NULL
+  transfer_clause <- NULL
+
+  if (isTRUE(hatchery) && length(selected_hatch_display) > 0) {
+    # A specific hatchery (or hatcheries) was selected from the menu.
+    # Say "at [Hatchery Name]" rather than the river.
+    hatch_str <- if (length(selected_hatch_display) == 1) {
+      selected_hatch_display
+    } else {
+      paste0(paste(selected_hatch_display[-length(selected_hatch_display)], collapse = ", "),
+             " or ", selected_hatch_display[length(selected_hatch_display)])
+    }
+    loc_str <- paste0("at ", hatch_str)
+
+    # Check if sac_main has transfer columns for this hatchery + run.
+    # (Transfer columns are only in sac_main, never the tributary tables.)
+    if (!is.null(loc_norm) && length(loc_norm) == 1 && loc_norm == "sac_main") {
+      trans_hatcheries <- .find_transfer_displays("sac_main", run_norm)
+      matched <- selected_hatch_display[selected_hatch_display %in% trans_hatcheries]
+      if (length(matched) > 0) {
+        transfer_clause <- ", only transfers from the Sacramento River"
+      }
+    }
+
+  } else {
+    # No specific hatchery selected: use location / river-system name.
+    loc_str <- if (!is.null(loc_norm) && length(loc_norm) == 1) {
+      dn <- unname(.location_display_names[loc_norm])
+      if (!is.na(dn)) .loc_phrase(dn) else NULL
+    } else if (!is.null(rs_norm)) {
+      sys_names <- c(sacramento  = "the Sacramento River system",
+                     san_joaquin = "the San Joaquin River system",
+                     feather     = "the Feather River system")
+      paste0("in ", unname(sys_names[rs_norm]))
+    } else NULL
+
+    # When hatchery=TRUE and result is empty, check unfiltered for transfer
+    # columns so we can say "only transfers to X".
+    if (isTRUE(hatchery) && !is.null(unfiltered)) {
+      all_cols <- if (is.data.frame(unfiltered)) {
+        names(unfiltered)
+      } else if (is.list(unfiltered)) {
+        unlist(lapply(unfiltered, function(t) if (is.data.frame(t)) names(t) else character(0)))
+      } else character(0)
+
+      trans_cols <- all_cols[grepl("_trans_", all_cols) & !grepl(meta_re, all_cols)]
+      if (length(trans_cols) > 0) {
+        hatch_names <- character(0)
+        for (col in unique(trans_cols)) {
+          for (h in .hatchery_patterns) {
+            if (grepl(h$col_suffix, col)) {
+              hatch_names <- c(hatch_names, h$display)
+              break
+            }
+          }
+        }
+        hatch_names <- unique(hatch_names)
+        if (length(hatch_names) > 0) {
+          ht_str <- if (length(hatch_names) == 1) {
+            hatch_names
+          } else {
+            paste0(paste(hatch_names[-length(hatch_names)], collapse = ", "),
+                   " and ", hatch_names[length(hatch_names)])
+          }
+          transfer_clause <- paste0(", only transfers to ", ht_str)
+        }
+      }
+    }
+  }
+
+  stop("There are no ",
+       if (!is.null(run_str)) paste0(run_str, " ") else "",
+       type_str, " returns",
+       if (!is.null(loc_str)) paste0(" ", loc_str) else "",
+       if (!is.null(transfer_clause)) transfer_clause else "",
+       ".", call. = FALSE)
+}
+
+.filter_hatch_only <- function(result, col_suffix) {
+  filter_tbl <- function(tbl) {
+    if (!is.data.frame(tbl)) return(tbl)
+    meta  <- grepl("run_year|spawn_period|provisional", names(tbl))
+    match <- grepl(col_suffix, names(tbl))
+    tbl[, meta | match, drop = FALSE]
+  }
+  if (is.data.frame(result)) return(filter_tbl(result))
+  if (is.list(result))       return(lapply(result, filter_tbl))
+  result
 }
 
 .normalize_river_system <- function(rs) {
@@ -524,7 +840,234 @@
   for (i in seq_along(parts)[-1]) {
     result <- merge(result, parts[[i]], by = "run_year", all = TRUE)
   }
+  # Deduplicate .x/.y suffix pairs produced by merge() when column names
+  # collide (e.g. lf_spawn_period appearing in multiple tables).
+  # Values should be identical across tables, so keep .x and drop .y.
+  nms   <- names(result)
+  x_cols <- nms[endsWith(nms, ".x")]
+  if (length(x_cols) > 0) {
+    base  <- sub("\\.x$", "", x_cols)
+    names(result)[names(result) %in% x_cols] <- base
+    result <- result[, !names(result) %in% paste0(base, ".y"), drop = FALSE]
+  }
   tibble::as_tibble(result)
+}
+
+# -- Summary table helpers ----------------------------------------------------
+
+# Table 1 with Sacramento-only fall and winter totals.
+# Fall:   replace f_total with f_sac_sys_total from Table 6.
+# Winter: replace w_total with w_sac_sys_total from Table 3.
+.extract_t1_sac_adjusted <- function() {
+  t1 <- .prepare_full_t1()
+  t6 <- .prepare_table(6L, "f")
+  t3 <- .prepare_table(3L, "w")
+
+  sac_fall <- t6[, c("run_year", "f_sac_sys_total"), drop = FALSE]
+  t1 <- merge(t1, sac_fall, by = "run_year", all.x = TRUE)
+  t1$f_total        <- t1$f_sac_sys_total
+  t1$f_sac_sys_total <- NULL
+
+  sac_wint <- t3[, c("run_year", "w_sac_sys_total"), drop = FALSE]
+  t1 <- merge(t1, sac_wint, by = "run_year", all.x = TRUE)
+  t1$w_total        <- t1$w_sac_sys_total
+  t1$w_sac_sys_total <- NULL
+
+  tibble::as_tibble(t1)
+}
+
+# "ALL RUNS" table for San Joaquin system only.
+# Combines winter Calaveras (Table 3) and fall SJ summary (Table 6).
+.extract_t1_sj_only <- function() {
+  t3 <- .prepare_table(3L, "w")
+  t6 <- .prepare_table(6L, "f")
+
+  wint <- t3[, c("run_year", "w_spawn_period", "w_calaveras"), drop = FALSE]
+  sj_cols <- c("run_year", grep("^f_sj_", names(t6), value = TRUE))
+  fall <- t6[, sj_cols, drop = FALSE]
+
+  tibble::as_tibble(merge(wint, fall, by = "run_year", all = TRUE))
+}
+
+# Menu for run="f", summary=TRUE (no river_system filter).
+# Offers: ALL RUNS fall columns / Summary I / Summary II / All.
+.fall_summary_menu <- function() {
+  t1_label <- .fall_table_titles[["1"]]
+  t6_label <- .fall_table_titles[["6"]]
+  t7_label <- .fall_table_titles[["7"]]
+  choices  <- c(t1_label, t6_label, t7_label, "All fall summary tables")
+
+  get_all <- function() {
+    result_list <- list(
+      .extract_t1_run("f"),
+      .prepare_table(6L, "f"),
+      .prepare_table(7L, "f")
+    )
+    names(result_list) <- c(t1_label, t6_label, t7_label)
+    result_list
+  }
+
+  if (!interactive()) return(get_all())
+
+  selected <- utils::select.list(choices, multiple = TRUE,
+    title = "Select fall run summary table(s):")
+  if (length(selected) == 0) return(invisible(NULL))
+
+  all_sel <- "All fall summary tables" %in% selected
+  result  <- list()
+  if (all_sel || t1_label %in% selected) result[[t1_label]] <- .extract_t1_run("f")
+  if (all_sel || t6_label %in% selected) result[[t6_label]] <- .prepare_table(6L, "f")
+  if (all_sel || t7_label %in% selected) result[[t7_label]] <- .prepare_table(7L, "f")
+
+  if (length(result) == 1) return(result[[1]])
+  result
+}
+
+# Full summary menu: ALL RUNS / Summary I / Summary II / All summary tables.
+# rs_norm controls whether Sacramento-adjusted versions are used.
+.all_summary_menu <- function(rs_norm = NULL) {
+  sac <- identical(rs_norm, "sacramento")
+
+  t1_label <- if (sac) {
+    paste0(.fall_table_titles[["1"]],
+           " (excluding San Joaquin Fall and Winter from totals)")
+  } else {
+    .fall_table_titles[["1"]]
+  }
+  t6_label <- .fall_table_titles[["6"]]
+  t7_label <- .fall_table_titles[["7"]]
+  choices  <- c(t1_label, t6_label, t7_label, "All summary tables")
+
+  get_t1 <- function() if (sac) .extract_t1_sac_adjusted() else .prepare_full_t1()
+  get_t6 <- function() {
+    t6 <- .prepare_table(6L, "f")
+    if (!sac) return(t6)
+    keep <- c("run_year", grep("^f_sac_sys_", names(t6), value = TRUE))
+    t6[, keep, drop = FALSE]
+  }
+  get_t7 <- function() .prepare_table(7L, "f")
+
+  get_all <- function() {
+    result_list <- list(get_t1(), get_t6(), get_t7())
+    names(result_list) <- c(t1_label, t6_label, t7_label)
+    result_list
+  }
+
+  if (!interactive()) return(get_all())
+
+  selected <- utils::select.list(choices, multiple = TRUE,
+    title = "Select summary table(s):")
+  if (length(selected) == 0) return(invisible(NULL))
+
+  all_sel <- "All summary tables" %in% selected
+  result  <- list()
+  if (all_sel || t1_label %in% selected) result[[t1_label]] <- get_t1()
+  if (all_sel || t6_label %in% selected) result[[t6_label]] <- get_t6()
+  if (all_sel || t7_label %in% selected) result[[t7_label]] <- get_t7()
+
+  if (length(result) == 1) return(result[[1]])
+  result
+}
+
+# Master router for all summary=TRUE paths.
+.route_summary <- function(run_norm, rs_norm, rs_all = FALSE) {
+
+  run_labels <- c(lf = "Late-Fall Run", w = "Winter Run",
+                  s  = "Spring Run",    f  = "Fall Run")
+
+  # run="all" -> full summary menu (with optional Sacramento adjustment).
+  if (identical(run_norm, "all")) {
+    if (!is.null(rs_norm) && rs_norm == "feather") {
+      stop("There is no summary table for the Feather River.", call. = FALSE)
+    }
+    if (!is.null(rs_norm) && rs_norm == "san_joaquin") {
+      # Special case: SJ-specific tables only.
+      t6  <- .prepare_table(6L, "f")
+      sj_cols <- c("run_year", grep("^f_sj_", names(t6), value = TRUE))
+      t3  <- .prepare_table(3L, "w")
+      message("There are no Spring Run or Late-Fall Run in the ",
+              "San Joaquin River System.")
+      result <- list()
+      result[["FALL RUN Summary I (San Joaquin System only)"]] <-
+        t6[, sj_cols, drop = FALSE]
+      result[["Winter Run (San Joaquin System)"]] <-
+        t3[, c("run_year", "w_spawn_period", "w_calaveras"), drop = FALSE]
+      return(result)
+    }
+    return(.all_summary_menu(rs_norm))
+  }
+
+  # run=NULL: rs="all" or no rs -> Table 1; rs specified -> filtered Table 1.
+  if (is.null(run_norm)) {
+    if (!is.null(rs_norm) && rs_norm == "feather")
+      stop("There is no summary table for the Feather River.", call. = FALSE)
+    if (rs_all || is.null(rs_norm)) {
+      if (rs_all) return(.all_summary_menu(NULL))
+      return(.prepare_full_t1())
+    }
+    if (rs_norm == "sacramento") return(.extract_t1_sac_adjusted())
+    if (rs_norm == "san_joaquin") return(.extract_t1_sj_only())
+  }
+
+  # Single run.
+  if (length(run_norm) == 1) {
+    # Validate run/rs combos (mirrors existing validation).
+    if (run_norm == "lf" && !is.null(rs_norm) && rs_norm != "sacramento")
+      stop("Late-fall run are only found in the Sacramento River System.",
+           call. = FALSE)
+    if (run_norm %in% c("lf", "s") && !is.null(rs_norm) &&
+        rs_norm == "san_joaquin")
+      stop("There is no ", run_labels[[run_norm]], " escapement in the ",
+           "San Joaquin River system.", call. = FALSE)
+
+    if (run_norm == "f") {
+      if (is.null(rs_norm)) return(.fall_summary_menu())
+      if (rs_norm == "sacramento") return(.prepare_table(7L, "f"))
+      if (rs_norm == "san_joaquin") {
+        t6 <- .prepare_table(6L, "f")
+        sj_cols <- c("run_year", grep("^f_sj_", names(t6), value = TRUE))
+        return(t6[, sj_cols, drop = FALSE])
+      }
+      if (rs_norm == "feather") {
+        # No dedicated summary: return Section 3 feather-system columns.
+        t10 <- .prepare_table(10L, "f")
+        feat <- c("run_year",
+                  grep("^f_(feather|yuba|bear_r)", names(t10), value = TRUE))
+        return(t10[, feat, drop = FALSE])
+      }
+    }
+
+    if (run_norm == "w") {
+      if (is.null(rs_norm)) return(.extract_t1_run("w"))
+      if (rs_norm == "sacramento") {
+        warning("Calaveras River Winter Run data are excluded from totals. ",
+                "To include Calaveras River Winter Run data in totals, ",
+                "use river_system = NULL.", call. = FALSE)
+        t1w <- .extract_t1_run("w")
+        t3  <- .prepare_table(3L, "w")
+        sac <- t3[, c("run_year", "w_sac_sys_total"), drop = FALSE]
+        t1w <- merge(t1w, sac, by = "run_year", all.x = TRUE)
+        t1w$w_total       <- t1w$w_sac_sys_total
+        t1w$w_sac_sys_total <- NULL
+        return(tibble::as_tibble(t1w))
+      }
+      if (rs_norm == "san_joaquin") {
+        t3 <- .prepare_table(3L, "w")
+        return(tibble::as_tibble(
+          t3[, c("run_year", "w_spawn_period", "w_calaveras"), drop = FALSE]
+        ))
+      }
+    }
+
+    # lf / s: feather has no summary table outside of run="f".
+    if (!is.null(rs_norm) && rs_norm == "feather")
+      stop("There is no summary table for the Feather River.", call. = FALSE)
+    # lf / s with no rs or rs="sacramento": Table 1 for that run.
+    return(.extract_t1_run(run_norm))
+  }
+
+  # Multi-run: return Table 1.
+  .prepare_full_t1()
 }
 
 .fall_menu <- function() {
@@ -561,6 +1104,166 @@
       name <- grandtab_detail[[idx]][[1]]
     }
     result[[name]] <- tbl
+  }
+  if (length(result) == 1) return(result[[1]])
+  result
+}
+
+# -- Per-hatchery data extractors (raw; origin filter applied by caller) ------
+
+.extract_cnfh_data <- function() {
+  # CNFH at Battle Creek: late-fall (table 2) and fall (table 8)
+  lf_tbl <- .extract_location_from_table(2L, "lf", "battle")
+  f_tbl  <- .extract_location_from_table(8L, "f",  "battle")
+  .join_on_run_year(list(lf_tbl, f_tbl))
+}
+
+.extract_tcff_data <- function() {
+  # TCFF hatchery escapement: standalone column in fall table 9
+  raw <- grandtab_detail[[9L]][[2]]
+  tibble::tibble(run_year = raw[["YEAR"]], f_tcff = raw[["TCFF"]])
+}
+
+.extract_frh_data <- function() {
+  # Feather River Hatchery: late-fall (t2), spring (t5), fall (t10)
+  .extract_across_runs(c("lf", "s", "f"), "feather", as_list = FALSE)
+}
+
+.extract_nfh_data <- function() {
+  # Nimbus Hatchery: fall American River data (table 10)
+  .extract_fall_locations("american")
+}
+
+.extract_sac_hatch_all <- function() {
+  list(
+    "CNFH - Coleman National Fish Hatchery" = .extract_cnfh_data(),
+    "TCFF - Tehama-Colusa Fish Facility"    = .extract_tcff_data(),
+    "FRH  - Feather River Hatchery"         = .extract_frh_data(),
+    "NFH  - Nimbus Hatchery"                = .extract_nfh_data()
+  )
+}
+
+# Helper: build a raw (pre-filter) TCFF fall tibble from table 9
+.raw_tcff_fall <- function() {
+  raw9 <- grandtab_detail[[9L]][[2]]
+  tibble::tibble(run_year = raw9[["YEAR"]], f_tcff = raw9[["TCFF"]])
+}
+
+# Assemble run-keyed raw data for a set of selected hatcheries.
+# Returns a named list with keys LATE-FALL / SPRING / FALL (only those runs
+# that have data for the selected hatcheries), or a single tibble when only
+# one run is represented.
+.build_sac_hatch_result <- function(cnfh, tcff, frh, nfh) {
+  lf_parts <- list()
+  if (cnfh) lf_parts <- c(lf_parts,
+    list(.extract_location_from_table(2L,  "lf", "battle")))
+  if (frh)  lf_parts <- c(lf_parts,
+    list(.extract_location_from_table(2L,  "lf", "feather")))
+
+  s_parts <- list()
+  if (frh)  s_parts <- c(s_parts,
+    list(.extract_location_from_table(5L,  "s",  "feather")))
+
+  f_parts <- list()
+  if (cnfh) f_parts <- c(f_parts,
+    list(.extract_location_from_table(8L,  "f",  "battle")))
+  if (tcff) f_parts <- c(f_parts, list(.raw_tcff_fall()))
+  if (frh)  f_parts <- c(f_parts,
+    list(.extract_location_from_table(10L, "f",  "feather")))
+  if (nfh)  f_parts <- c(f_parts, list(.extract_fall_locations("american")))
+
+  result <- list()
+  if (length(lf_parts) > 0) result[["LATE-FALL"]] <- .join_on_run_year(lf_parts)
+  if (length(s_parts)  > 0) result[["SPRING"]]    <- .join_on_run_year(s_parts)
+  if (length(f_parts)  > 0) result[["FALL"]]      <- .join_on_run_year(f_parts)
+
+  if (length(result) == 1) result[[1]] else result
+}
+
+# Menu shown when location = "sacramento", section = NULL, origin = "hatch"
+.sac_system_hatch_menu <- function() {
+  choices <- c(
+    "CNFH - Coleman National Fish Hatchery",
+    "TCFF - Tehama-Colusa Fish Facility",
+    "FRH  - Feather River Hatchery",
+    "NFH  - Nimbus Hatchery",
+    "All Sacramento System Hatcheries"
+  )
+
+  if (!interactive()) {
+    return(.build_sac_hatch_result(TRUE, TRUE, TRUE, TRUE))
+  }
+
+  selected <- utils::select.list(choices, multiple = TRUE,
+    title = "Select Sacramento River system hatchery:")
+  if (length(selected) == 0) return(invisible(NULL))
+
+  all <- choices[5] %in% selected
+  .build_sac_hatch_result(
+    cnfh = all || choices[1] %in% selected,
+    tcff = all || choices[2] %in% selected,
+    frh  = all || choices[3] %in% selected,
+    nfh  = all || choices[4] %in% selected
+  )
+}
+
+# Menu shown when location = "sacramento" (any section), hatchery = TRUE
+# (Sacramento River mainstem: CNFH and TCFF only)
+.sac_main_hatch_menu <- function() {
+  choices <- c(
+    "CNFH - Coleman National Fish Hatchery",
+    "TCFF - Tehama-Colusa Fish Facility",
+    "All Sacramento River Hatchery Returns"
+  )
+
+  if (!interactive()) {
+    return(.build_sac_hatch_result(TRUE, TRUE, FALSE, FALSE))
+  }
+
+  selected <- utils::select.list(choices, multiple = TRUE,
+    title = "Select Sacramento River hatchery:")
+  if (length(selected) == 0) return(invisible(NULL))
+
+  all <- choices[3] %in% selected
+  .build_sac_hatch_result(
+    cnfh = all || choices[1] %in% selected,
+    tcff = all || choices[2] %in% selected,
+    frh  = FALSE,
+    nfh  = FALSE
+  )
+}
+
+# Menu shown when run = "f", river_system = "sacramento", no section/location.
+# Offers the three Sacramento sections (tables 8-10).
+# Section 3 (table 10) includes Feather River, Yuba River, Bear River, etc.
+.sac_fall_menu <- function() {
+  choices <- c(
+    "All Sacramento River Sections (1-3)",
+    .fall_table_titles[["8"]],
+    .fall_table_titles[["9"]],
+    .fall_table_titles[["10"]]
+  )
+  indices <- c(0L, 8L, 9L, 10L)
+
+  if (!interactive()) {
+    result <- list()
+    for (idx in c(8L, 9L, 10L)) {
+      result[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
+    }
+    return(result)
+  }
+
+  selected <- utils::select.list(choices, multiple = TRUE,
+    title = "Select Sacramento River fall run section(s):")
+  if (length(selected) == 0) return(invisible(NULL))
+
+  sel_idx <- indices[match(selected, choices)]
+  if (0L %in% sel_idx) sel_idx <- c(8L, 9L, 10L)
+  sel_idx <- sort(unique(sel_idx))
+
+  result <- list()
+  for (idx in sel_idx) {
+    result[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
   }
   if (length(result) == 1) return(result[[1]])
   result
@@ -710,16 +1413,7 @@
 
   if (!is.null(rs)) {
     if (rs == "sacramento") {
-      t6 <- .prepare_table(6L, "f")
-      t6 <- t6[, 1:5]
-      t7 <- .prepare_table(7L, "f")
-      message("Note: these are summary tables for the whole Sacramento River ",
-              "System. For greater specification, use the 'section' and ",
-              "'location' arguments.")
-      return(list(
-        "FALL RUN Summary I: Sacramento and San Joaquin River Systems" = t6,
-        "FALL RUN Summary II: Sacramento River System" = t7
-      ))
+      return(.sac_fall_menu())
     }
     if (rs == "san_joaquin") {
       return(.prepare_table(11L, "f"))
@@ -888,28 +1582,134 @@
 #'   Tables 8--11). Only valid for fall run.
 #' @param run_years Numeric vector of years to filter results to, or
 #'   \code{NULL} (default) to return all years.
+#' @param hatchery Logical or \code{NULL}. Filter columns by return type.
+#'   \code{TRUE} returns only hatchery columns; \code{FALSE} returns only
+#'   in-river columns (including transfer columns). If \code{hatchery = TRUE}
+#'   and the specified location has no hatchery returns, an error is returned.
+#'   Default \code{NULL} returns all columns.
 #' @return A tibble or named list of tibbles.
 #' @export
 get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
-                           summary = NULL, section = NULL, run_years = NULL) {
+                           summary = NULL, section = NULL, run_years = NULL,
+                           hatchery = NULL) {
+
+  if (!is.null(hatchery) && !is.logical(hatchery))
+    stop("'hatchery' must be TRUE, FALSE, or NULL.", call. = FALSE)
 
   run_norm <- .normalize_run(run)
-  rs_norm  <- .normalize_river_system(river_system)
-  loc_norm <- .normalize_location(location)
+
+  # river_system="all" is a special sentinel: no system filter, but triggers
+  # the full summary menu when summary=TRUE and run is NULL.
+  rs_all  <- !is.null(river_system) &&
+               tolower(trimws(as.character(river_system))) == "all"
+  rs_norm <- if (rs_all) NULL else .normalize_river_system(river_system)
+
+  # Detect hatchery abbreviations before generic location normalisation
+  is_hatchery_loc <- FALSE
+  hatch_info      <- NULL
+  if (!is.null(location) && length(location) == 1) {
+    hatch_info <- .resolve_hatchery(location)
+    if (!is.null(hatch_info)) is_hatchery_loc <- TRUE
+  }
+  loc_norm <- if (is_hatchery_loc) hatch_info$assoc_loc else .normalize_location(location)
 
   if (isFALSE(summary)) summary <- NULL
   if (identical(tolower(as.character(summary)), "all")) summary <- TRUE
 
+  # -- Validate run_years -----------------------------------------------------
+  if (!is.null(run_years)) {
+    if (!is.numeric(run_years) && !all(!is.na(suppressWarnings(as.numeric(run_years))))) {
+      stop("'run_years' must be numeric.", call. = FALSE)
+    }
+    run_years <- as.numeric(run_years)
+    cur_year  <- as.integer(format(Sys.Date(), "%Y"))
+    bad_yrs   <- run_years[run_years < 1952 | run_years > cur_year]
+    if (length(bad_yrs) > 0)
+      stop("'run_years' must be between 1952 and ", cur_year, ". ",
+           "Invalid year(s): ", paste(bad_yrs, collapse = ", "), ".",
+           call. = FALSE)
+  }
+
+  # -- Summary routing (early return) -----------------------------------------
+  if (isTRUE(summary)) {
+    if (!is.null(loc_norm)) {
+      stop("location must be NULL if summary = TRUE.", call. = FALSE)
+    }
+    result    <- .route_summary(run_norm, rs_norm, rs_all)
+    finalized <- .finalize_output(result)
+    yr_filt   <- .filter_run_years(finalized, run_years)
+    filtered  <- .filter_by_origin(yr_filt, hatchery)
+    .assert_has_data(filtered, hatchery, run_norm, rs_norm, loc_norm,
+                     unfiltered = yr_filt)
+    return(filtered)
+  }
+
+  # -- Hatchery location handling ---------------------------------------------
+
+  if (is_hatchery_loc) {
+    if (isFALSE(hatchery)) {
+      stop('hatchery cannot be FALSE when location is a hatchery.', call. = FALSE)
+    }
+    if (!is.null(run_norm) && !identical(run_norm, "all")) {
+      invalid <- run_norm[!run_norm %in% hatch_info$valid_runs]
+      if (length(invalid) > 0) {
+        run_labels <- c(lf = "Late-Fall Run", w = "Winter Run",
+                        s  = "Spring Run",    f  = "Fall Run")
+        run_str <- paste(
+          unname(run_labels[invalid[invalid %in% names(run_labels)]]),
+          collapse = " or "
+        )
+        stop("No ", hatch_info$display, " data for ", run_str, ".",
+             call. = FALSE)
+      }
+    }
+    # Default to the hatchery's valid runs when none specified
+    if (is.null(run_norm) || identical(run_norm, "all")) {
+      run_norm <- hatch_info$valid_runs
+    }
+    # When hatchery=NULL, also pull from the transfer source so _trans_ columns
+    # are included. The col_suffix filter will keep only the relevant ones.
+    if (is.null(hatchery) && !is.null(hatch_info$trans_loc)) {
+      loc_norm <- c(loc_norm, hatch_info$trans_loc)
+    }
+  }
+
   # -- Validate ---------------------------------------------------------------
 
   if (!is.null(section)) {
-    section <- as.integer(section)
+    sec_str    <- trimws(as.character(section))
+    roman_map  <- c(I = 1L, II = 2L, III = 3L, IV = 4L)
+    roman_hit  <- roman_map[toupper(sec_str)]
+    if (!is.na(roman_hit)) {
+      section <- unname(roman_hit)
+    } else {
+      s_int <- suppressWarnings(as.integer(sec_str))
+      if (is.na(s_int) || as.character(s_int) != sec_str)
+        stop("'section' must be 1, 2, 3, or 4 (or Roman numeral I-IV).",
+             call. = FALSE)
+      section <- s_int
+    }
     if (!section %in% 1:4)
-      stop("'section' must be 1-4.", call. = FALSE)
+      stop("'section' must be 1, 2, 3, or 4 (or Roman numeral I-IV).",
+           call. = FALSE)
     if (!is.null(run_norm) && length(run_norm) == 1 &&
         !run_norm %in% c("f", "all"))
       stop("'section' only applies to fall run. Only fall run data is ",
-           "organized by geographic section.", call. = FALSE)
+           "organized by geographic section. Did you mean `run = 'f'`?",
+           call. = FALSE)
+  }
+
+  if (!is.null(section) && !is.null(rs_norm)) {
+    if (section == 4L && rs_norm == "sacramento") {
+      stop("Fall Run Section 4 covers the San Joaquin River system, not the ",
+           "Sacramento River system. Did you mean `river_system = 'san_joaquin'`?",
+           call. = FALSE)
+    }
+    if (section %in% 1:3 && rs_norm == "san_joaquin") {
+      stop("Fall Run Section ", section, " covers the Sacramento River system, not ",
+           "the San Joaquin River system. Did you mean `river_system = 'sacramento'`?",
+           call. = FALSE)
+    }
   }
 
   if (isTRUE(summary) && !is.null(section))
@@ -926,14 +1726,251 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
            call. = FALSE)
   }
 
-  if (!is.null(loc_norm) && !is.null(run_norm) && length(run_norm) == 1 &&
-      run_norm != "all") {
+  if (!is_hatchery_loc && !is.null(loc_norm) && !is.null(run_norm) &&
+      length(run_norm) == 1 && run_norm != "all") {
+    run_labels <- c(lf = "Late-Fall Run", w = "Winter Run",
+                    s  = "Spring Run",    f  = "Fall Run")
+    bad_locs  <- character(0)
+    good_locs <- character(0)
     for (loc in loc_norm) {
-      if (is.null(.get_table_for_run_location(run_norm, loc)))
-        stop("'", loc, "' does not exist for ",
-             switch(run_norm, lf="late-fall", w="winter", s="spring", f="fall"),
-             " run.", call. = FALSE)
+      if (is.null(.get_table_for_run_location(run_norm, loc))) {
+        bad_locs <- c(bad_locs, loc)
+      } else {
+        good_locs <- c(good_locs, loc)
+      }
     }
+    if (length(bad_locs) > 0) {
+      if (length(good_locs) == 0) {
+        # All locations are incompatible — error
+        dn_all <- vapply(bad_locs, function(l) {
+          dn <- unname(.location_display_names[l])
+          if (!is.na(dn)) dn else l
+        }, character(1))
+        if (length(dn_all) == 1) {
+          stop("There is no ", run_labels[[run_norm]], " escapement ",
+               .loc_phrase(dn_all), ".", call. = FALSE)
+        } else {
+          stop("There is no ", run_labels[[run_norm]], " escapement at any of: ",
+               paste(dn_all, collapse = ", "), ".", call. = FALSE)
+        }
+      } else {
+        # Some locations are OK — warn about the bad ones and continue
+        for (loc in bad_locs) {
+          dn <- unname(.location_display_names[loc])
+          dn <- if (!is.na(dn)) dn else loc
+          warning("There is no ", run_labels[[run_norm]], " escapement ",
+                  .loc_phrase(dn), ". Skipping.", call. = FALSE)
+        }
+        loc_norm <- good_locs
+      }
+    }
+  }
+
+  if (isTRUE(hatchery) && !is.null(loc_norm)) {
+    run_labels <- c(lf = "Late-Fall Run", w = "Winter Run",
+                    s  = "Spring Run",    f  = "Fall Run")
+    # Treat run = "all" like NULL for hatchery checking (all runs requested)
+    check_run <- if (identical(run_norm, "all")) NULL else run_norm
+
+    for (loc in loc_norm) {
+      # sac_main hatchery routing is special-cased in the intercept below;
+      # run/hatchery validation for that path is handled there.
+      if (loc == "sac_main") next
+
+      dn <- unname(.location_display_names[loc])
+      if (is.na(dn)) dn <- loc
+
+      if (!.location_has_hatchery(loc, run_norm = NULL)) {
+        stop("There is no hatchery ", .loc_phrase(dn, "on"), ".", call. = FALSE)
+      }
+      if (!is.null(check_run) && !.location_has_hatchery(loc, check_run)) {
+        known     <- check_run[check_run %in% names(run_labels)]
+        run_str   <- paste(unname(run_labels[known]), collapse = " or ")
+        hatch_name <- .location_hatchery_display(loc)
+        at_str    <- if (!is.null(hatch_name)) paste0("at ", hatch_name)
+                     else paste0("in the ", dn)
+        stop("There are no ", run_str, " hatchery returns ", at_str, ".",
+             call. = FALSE)
+      }
+    }
+  }
+
+  # -- Special cases: Sacramento mainstem + hatch origin ---------------------
+  # Transfer columns (sac_main_trans_cnfh etc.) are not hatchery-origin fish,
+  # so they are excluded from the origin filter. Instead, route to per-hatchery
+  # data pulled from the relevant tributary/table directly.
+
+  if (isTRUE(hatchery) &&
+      !is.null(loc_norm) && length(loc_norm) == 1 && loc_norm == "sac_main") {
+
+    run_key_map <- c(lf = "LATE-FALL", w = "WINTER", s = "SPRING", f = "FALL")
+    run_labels  <- c(lf = "Late-Fall Run", w = "Winter Run",
+                     s  = "Spring Run",    f  = "Fall Run")
+
+    # Validate run BEFORE showing any interactive menu.
+    # Sac system hatcheries cover late-fall, spring, and fall only.
+    if (!is.null(run_norm) && !identical(run_norm, "all")) {
+      keep_keys <- unname(run_key_map[run_norm])
+      keep_keys <- keep_keys[keep_keys %in% c("LATE-FALL", "SPRING", "FALL")]
+      if (length(keep_keys) == 0) {
+        known   <- run_norm[run_norm %in% names(run_labels)]
+        run_str <- paste(unname(run_labels[known]), collapse = " or ")
+        trans_names <- .find_transfer_displays("sac_main", run_norm)
+        transfer_clause <- if (length(trans_names) > 0) {
+          hatch_str <- if (length(trans_names) == 1) {
+            trans_names
+          } else {
+            paste0(paste(trans_names[-length(trans_names)], collapse = ", "),
+                   " and ", trans_names[length(trans_names)])
+          }
+          paste0(", only transfers to ", hatch_str)
+        } else NULL
+        stop("There are no ", run_str,
+             " hatchery returns in the Sacramento River",
+             if (!is.null(transfer_clause)) transfer_clause else "",
+             ".", call. = FALSE)
+      }
+    }
+
+    .filter_sac_hatch_runs <- function(raw) {
+      if (is.null(run_norm) || identical(run_norm, "all") || !is.list(raw))
+        return(raw)
+      if (is.data.frame(raw)) {
+        # .build_sac_hatch_result() collapses single-element lists to a data
+        # frame.  Check that its columns are actually for the requested run;
+        # if not (e.g. TCFF selected for spring but result is fall data),
+        # treat as empty so .assert_has_data() can produce the right error.
+        pfx <- paste0("^(", paste(run_norm, collapse = "|"), ")_")
+        if (!any(grepl(pfx, names(raw)))) return(list())
+        return(raw)
+      }
+      keep <- unname(run_key_map[run_norm])
+      keep <- keep[keep %in% names(raw)]
+      if (length(keep) == 1) raw[[keep]] else raw[keep]
+    }
+
+    # section = NULL  →  Sacramento River hatchery menu (CNFH / TCFF / All)
+    if (is.null(section)) {
+      raw_menu   <- .sac_main_hatch_menu()
+      selected   <- .detect_hatcheries_in_result(raw_menu)
+      raw        <- .filter_sac_hatch_runs(raw_menu)
+      unfiltered <- .filter_run_years(.finalize_output(raw), run_years)
+      filtered   <- .filter_by_origin(unfiltered, hatchery)
+      .assert_has_data(filtered, hatchery, run_norm, rs_norm, loc_norm,
+                       unfiltered = unfiltered, selected_hatch_display = selected)
+      return(filtered)
+    }
+
+    # section = 1  →  upper-Sacramento menu (CNFH / TCFF)
+    if (section == 1L) {
+      raw_menu   <- .sac_main_hatch_menu()
+      selected   <- .detect_hatcheries_in_result(raw_menu)
+      raw        <- .filter_sac_hatch_runs(raw_menu)
+      unfiltered <- .filter_run_years(.finalize_output(raw), run_years)
+      filtered   <- .filter_by_origin(unfiltered, hatchery)
+      .assert_has_data(filtered, hatchery, run_norm, rs_norm, loc_norm,
+                       unfiltered = unfiltered, selected_hatch_display = selected)
+      return(filtered)
+    }
+  }
+
+  # -- Special case: Sacramento river_system + hatchery=TRUE ------------------
+  # Show the full system hatchery menu (CNFH / TCFF / FRH / NFH / All).
+
+  if (isTRUE(hatchery) && !is.null(rs_norm) && rs_norm == "sacramento" &&
+      is.null(loc_norm)) {
+
+    run_key_map <- c(lf = "LATE-FALL", w = "WINTER", s = "SPRING", f = "FALL")
+    run_labels  <- c(lf = "Late-Fall Run", w = "Winter Run",
+                     s  = "Spring Run",    f  = "Fall Run")
+
+    # Validate run before showing menu (sac hatcheries cover lf, s, f only).
+    if (!is.null(run_norm) && !identical(run_norm, "all")) {
+      keep_keys <- unname(run_key_map[run_norm])
+      keep_keys <- keep_keys[keep_keys %in% c("LATE-FALL", "SPRING", "FALL")]
+      if (length(keep_keys) == 0) {
+        known   <- run_norm[run_norm %in% names(run_labels)]
+        run_str <- paste(unname(run_labels[known]), collapse = " or ")
+        trans_names <- .find_transfer_displays("sac_main", run_norm)
+        transfer_clause <- if (length(trans_names) > 0) {
+          ht <- if (length(trans_names) == 1) {
+            trans_names
+          } else {
+            paste0(paste(trans_names[-length(trans_names)], collapse = ", "),
+                   " and ", trans_names[length(trans_names)])
+          }
+          paste0(", only transfers to ", ht)
+        } else NULL
+        stop("There are no ", run_str,
+             " hatchery returns in the Sacramento River system",
+             if (!is.null(transfer_clause)) transfer_clause else "",
+             ".", call. = FALSE)
+      }
+    }
+
+    filter_by_run <- function(raw) {
+      if (is.null(run_norm) || identical(run_norm, "all") || !is.list(raw))
+        return(raw)
+      if (is.data.frame(raw)) {
+        pfx <- paste0("^(", paste(run_norm, collapse = "|"), ")_")
+        if (!any(grepl(pfx, names(raw)))) return(list())
+        return(raw)
+      }
+      keep <- unname(run_key_map[run_norm])
+      keep <- keep[keep %in% names(raw)]
+      if (length(keep) == 1) raw[[keep]] else raw[keep]
+    }
+
+    raw_menu   <- .sac_system_hatch_menu()
+    selected   <- .detect_hatcheries_in_result(raw_menu)
+    raw        <- filter_by_run(raw_menu)
+    unfiltered <- .filter_run_years(.finalize_output(raw), run_years)
+    filtered   <- .filter_by_origin(unfiltered, hatchery)
+    .assert_has_data(filtered, hatchery, run_norm, rs_norm, loc_norm,
+                     unfiltered = unfiltered, selected_hatch_display = selected)
+    return(filtered)
+  }
+
+  # -- Special case: Sacramento mainstem + hatchery=FALSE + no section --------
+  # Tables 8 and 9 both use the same snake_case name ("sac_main_inr") for the
+  # mainstem in-river column. Merging them via .extract_fall_locations() adds
+  # .x/.y suffixes that break the _inr$ filter, producing an empty result.
+  # Use Fall Run Summary II (table 7) for fall instead — it carries clean
+  # section-labelled in-river columns (kesw_rbdd_main_inr, etc.).
+
+  if (isFALSE(hatchery) &&
+      !is.null(loc_norm) && length(loc_norm) == 1 && loc_norm == "sac_main" &&
+      is.null(section) &&
+      (is.null(run_norm) || "f" %in% run_norm || identical(run_norm, "all"))) {
+
+    fall_tbl <- .prepare_table(7L, "f")
+
+    if (!is.null(run_norm) && length(run_norm) == 1 && run_norm == "f") {
+      result <- fall_tbl
+    } else {
+      # Null run or multi-run: fetch lf/w/s normally, slot fall from table 7.
+      other_runs <- if (is.null(run_norm) || identical(run_norm, "all"))
+        c("lf", "w", "s")
+      else
+        run_norm[!run_norm %in% c("f", "all")]
+      result <- if (length(other_runs) > 0)
+        .extract_across_runs(other_runs, loc_norm, as_list = TRUE)
+      else
+        list()
+      result[["FALL"]] <- fall_tbl
+    }
+
+    unfiltered <- .filter_run_years(.finalize_output(result), run_years)
+    out        <- .filter_by_origin(unfiltered, hatchery)
+    # location="sacramento" is the mainstem — drop tributary aggregates
+    drop_tribs <- function(tbl) {
+      if (!is.data.frame(tbl)) return(tbl)
+      tbl[, !grepl("_tribs_", names(tbl)), drop = FALSE]
+    }
+    filtered <- if (is.data.frame(out)) drop_tribs(out) else lapply(out, drop_tribs)
+    .assert_has_data(filtered, hatchery, run_norm, rs_norm, loc_norm,
+                     unfiltered = unfiltered)
+    return(filtered)
   }
 
   # -- Route ------------------------------------------------------------------
@@ -951,5 +1988,29 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
     .route_null_run(rs_norm, loc_norm, summary, section)
   }
 
-  .filter_run_years(.finalize_output(result), run_years)
+  out <- .filter_run_years(.finalize_output(result), run_years)
+
+  # Emit a message if current year was requested but has no data yet
+  if (!is.null(run_years)) {
+    cur_year <- as.integer(format(Sys.Date(), "%Y"))
+    if (cur_year %in% run_years) {
+      has_cur <- function(tbl) {
+        if (!is.data.frame(tbl)) return(FALSE)
+        any(!is.na(suppressWarnings(as.numeric(tbl$run_year))) &
+              suppressWarnings(as.numeric(tbl$run_year)) == cur_year, na.rm = TRUE)
+      }
+      found_cur <- if (is.data.frame(out)) has_cur(out) else any(vapply(out, has_cur, logical(1)))
+      if (!found_cur)
+        message("Data for ", cur_year, " have not yet been posted to GrandTab.")
+    }
+  }
+
+  filtered <- if (is_hatchery_loc) {
+    .filter_hatch_only(out, hatch_info$col_suffix)
+  } else {
+    .filter_by_origin(out, hatchery)
+  }
+  .assert_has_data(filtered, hatchery, run_norm, rs_norm, loc_norm,
+                   unfiltered = out)
+  filtered
 }

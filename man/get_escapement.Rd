@@ -10,7 +10,8 @@ get_escapement(
   location = NULL,
   summary = NULL,
   section = NULL,
-  run_years = NULL
+  run_years = NULL,
+  hatchery = NULL
 )
 }
 \arguments{
@@ -34,6 +35,12 @@ Tables 8--11). Only valid for fall run.}
 
 \item{run_years}{Numeric vector of years to filter results to, or
 \code{NULL} (default) to return all years.}
+
+\item{hatchery}{Logical or \code{NULL}. Filter columns by return type.
+\code{TRUE} returns only hatchery columns; \code{FALSE} returns only
+in-river columns (including transfer columns). If \code{hatchery = TRUE}
+and the specified location has no hatchery returns, an error is returned.
+Default \code{NULL} returns all columns.}
 }
 \value{
 A tibble or named list of tibbles.

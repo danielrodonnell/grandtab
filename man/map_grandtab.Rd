@@ -9,17 +9,18 @@ map_grandtab(
   river_system = NULL,
   location = NULL,
   section = NULL,
-  run_years = NULL,
-  plot_escapement = FALSE,
+  hatchery = NULL,
   base_map = c("CartoDB.Positron", "Esri.WorldImagery", "Esri.WorldTopoMap",
     "OpenTopoMap"),
-  show_hatcheries = NULL
+  show_hatcheries = TRUE
 )
 }
 \arguments{
-\item{run}{Character. Salmon run to filter: \code{"lf"} (late-fall),
-\code{"w"} (winter), \code{"s"} (spring), \code{"f"} (fall), or
-\code{NULL} (default). Affects which runs are plotted on click.}
+\item{run}{Character. Filter map to rivers with data for one or more runs.
+Accepts a scalar or vector of run names/codes: \code{"fall"} / \code{"f"},
+\code{"spring"} / \code{"s"}, \code{"winter"} / \code{"w"}, or
+\code{"late-fall"} / \code{"lf"}. A stream is shown if it has data for
+any of the specified runs. Default \code{NULL} shows all rivers.}
 
 \item{river_system}{Character. \code{"sacramento"} or \code{"san_joaquin"}.
 Highlights flowlines for that system and mutes the other.}
@@ -28,31 +29,37 @@ Highlights flowlines for that system and mutes the other.}
 matching supports short names (e.g. \code{"battle"}, \code{"Coleman"},
 \code{"CNFH"}). The matched location is highlighted on the map.}
 
-\item{section}{Integer 1--4. Fall run geographic section. Highlights
-flowlines in that section.}
+\item{section}{When \code{location = "sacramento"}: one of \code{1}, \code{2},
+\code{3} (numeric or character), \code{"lower"}, or \code{"all"} to go
+directly to that Sacramento River section without a menu. Otherwise:
+integer 1--4 selecting a fall-run geographic section to highlight across
+the whole map.}
 
-\item{run_years}{Numeric vector. Filter escapement plots to these years.}
-
-\item{plot_escapement}{Logical. If \code{TRUE}, immediately open escapement
-plots based on the current filter arguments. Default \code{FALSE}.}
+\item{hatchery}{Logical or \code{NULL}. Filter displayed streams by return
+type. \code{TRUE} shows only streams with hatchery returns; \code{FALSE}
+shows only streams with in-river returns. If \code{location} is a hatchery
+and \code{hatchery = FALSE}, an error is returned. If \code{hatchery = TRUE}
+and the specified location has no hatchery returns, an error is returned.
+Default \code{NULL} shows all streams.}
 
 \item{base_map}{Character. Tile provider for the base map. One of
 \code{"CartoDB.Positron"} (default), \code{"Esri.WorldImagery"},
 \code{"Esri.WorldTopoMap"}, or \code{"OpenTopoMap"}.}
 
 \item{show_hatcheries}{Logical or \code{NULL}. Whether to display hatchery
-markers. Default \code{NULL} shows hatcheries only when the selected
-location has one. Set \code{TRUE} to show all, \code{FALSE} to hide.}
+markers. Default \code{TRUE} shows all hatcheries whose stream is visible
+on the map. \code{FALSE} hides all markers. \code{NULL} shows only the
+hatchery associated with the selected location.}
 }
 \value{
-Invisible \code{NULL}. Called for its side effects (interactive map
-  and optional plots).
+Invisible \code{NULL}. Called for its side effect (interactive map).
 }
 \description{
 Opens an interactive leaflet map of the Sacramento-San Joaquin River system
 showing all GrandTab Chinook salmon monitoring locations. Supports
 highlighting specific rivers, hatcheries, river systems, or fall run
-sections. Clicking a river on the map opens an escapement time-series plot.
+sections. Hovering over a river shows a tooltip with the available salmon
+runs for that location.
 }
 \examples{
 \dontrun{
@@ -71,7 +78,7 @@ map_grandtab(river_system = "sacramento", base_map = "Esri.WorldImagery")
 # Section 1 rivers highlighted
 map_grandtab(section = 1)
 
-# Open plots immediately for Feather River
-map_grandtab(location = "feather", plot_escapement = TRUE)
+# Only rivers with fall run data
+map_grandtab(run = "fall")
 }
 }

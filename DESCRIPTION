@@ -7,10 +7,9 @@ Authors@R: person("Danny", "O'Donnell", email = "dodonnell2011@gmail.com",
 Description: Provides functions to query and retrieve California Department of
     Fish and Wildlife GrandTab Chinook salmon escapement data for all four
     Central Valley runs (fall, late-fall, winter, spring). Supports filtering
-    by run type, river system, location, fall run geographic section, and year.
-    Includes column metadata lookup, raw table access, table footnotes,
-    supplementary winter run data, GrandTab documentation, and an interactive
-    map of monitoring locations.
+    by run type, river system, location, fall run geographic section, and year(s).
+    Includes column metadata lookup, raw table access, table footnotes, 
+    GrandTab documentation, and an interactive map of monitoring locations.
 Depends:
     R (>= 4.1.0)
 License: MIT + file LICENSE
@@ -21,6 +20,8 @@ Imports:
     tibble
 Suggests:
     ggplot2,
+    htmltools,
+    htmlwidgets,
     leaflet,
     remotes,
     sf,
@@ -35,6 +36,7 @@ Collate:
     'get_column_notes.R'
     'get_grandtab_info.R'
     'get_grandtab_raw.R'
+    'get_locations.R'
     'get_winter_extras.R'
     'map_grandtab.R'
     'utils.R'

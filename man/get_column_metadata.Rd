@@ -10,7 +10,8 @@ get_column_metadata(
   river_system = NULL,
   location = NULL,
   summary = NULL,
-  section = NULL
+  section = NULL,
+  hatchery = NULL
 )
 }
 \arguments{
@@ -32,6 +33,10 @@ when piped. Leave \code{NULL} (default) for standalone use.}
 
 \item{section}{Integer 1--4. Fall run section. Passed to
 \code{get_escapement()}.}
+
+\item{hatchery}{Logical or \code{NULL}. Filter by escapement origin.
+Passed to \code{get_escapement()}. See \code{\link{get_escapement}} for
+details.}
 }
 \value{
 A tibble with columns \code{column_name}, \code{column_position},

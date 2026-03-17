@@ -25,12 +25,33 @@
 #' # get_grandtab_raw(2) %>% get_column_notes("3/)
 get_grandtab_raw <- function(table = NULL) {
 
-  if(!is.null(table)) {
-      
+  # Treat NA as NULL (return all tables)
+  if (!is.null(table) && all(is.na(table))) table <- NULL
+
+  if (!is.null(table)) {
+    # Coerce character to integer if possible
+    if (is.character(table)) {
+      coerced <- suppressWarnings(as.integer(table))
+      if (any(is.na(coerced))) {
+        stop("'table' must be an integer between 1 and 11, or NULL for all tables.",
+             call. = FALSE)
+      }
+      table <- coerced
+    }
+    # After coercion, validate range
+    if (!is.numeric(table) && !is.integer(table)) {
+      stop("'table' must be an integer between 1 and 11, or NULL for all tables.",
+           call. = FALSE)
+    }
+    table <- as.integer(table)
+    bad <- table[table < 1L | table > 11L]
+    if (length(bad) > 0)
+      stop("'table' must be between 1 and 11. Invalid value(s): ",
+           paste(bad, collapse = ", "), ".", call. = FALSE)
+
     gt <- try(lapply(grandtab_detail[table], \(x) x[[2]]))
     names(gt) <- try(lapply(grandtab_detail[table], \(x) x[[1]]))
-    
-  }else{
+  } else {
     gt <- try(lapply(grandtab_detail, \(x) x[[2]]))
     names(gt) <- try(lapply(grandtab_detail, \(x) x[[1]]))
   }

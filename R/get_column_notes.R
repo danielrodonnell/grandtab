@@ -243,9 +243,12 @@ get_column_notes <- function(table = NULL, footnote = NULL) {
   if (is.data.frame(table)) {
     tbl_num <- attr(table, "grandtab_table")
     if (is.null(tbl_num)) {
-      # Match piped tibble against grandtab_detail tables
+      # Match piped tibble by column-name signature
+      tbl_cols <- names(table)
       for (i in seq_along(grandtab_detail)) {
-        if (identical(table, grandtab_detail[[i]][[2]])) {
+        ref_cols <- names(grandtab_detail[[i]][[2]])
+        if (length(tbl_cols) <= length(ref_cols) &&
+            all(tbl_cols %in% ref_cols)) {
           tbl_num <- i
           break
         }
@@ -260,9 +263,12 @@ get_column_notes <- function(table = NULL, footnote = NULL) {
     tbl_nums <- vapply(table, function(x) {
       n <- attr(x, "grandtab_table")
       if (!is.null(n)) return(as.integer(n))
-      # Match against grandtab_detail tables
+      # Match by column-name signature
+      x_cols <- names(x)
       for (i in seq_along(grandtab_detail)) {
-        if (identical(x, grandtab_detail[[i]][[2]])) return(as.integer(i))
+        ref_cols <- names(grandtab_detail[[i]][[2]])
+        if (length(x_cols) <= length(ref_cols) &&
+            all(x_cols %in% ref_cols)) return(as.integer(i))
       }
       NA_integer_
     }, integer(1))

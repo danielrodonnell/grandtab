@@ -1,8 +1,8 @@
-name: Weekly GrandTab Update
+name: Daily GrandTab Update
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # Every Monday at 9am UTC
+    - cron: '0 10 * * *'  # Daily at 5am EST (10:00 UTC)
   workflow_dispatch:       # Allow manual trigger
 
 jobs:

@@ -12,25 +12,26 @@
 #' get_grandtab_info()
 #' }
 get_grandtab_info <- function() {
-  path <- system.file("extdata", "GrandTab Documentation.rtf",
+  path <- system.file("extdata", "GrandTab_Documentation.txt",
                       package = "grandtab")
 
   # Fall back for development mode (working directory is package root)
-  if (!nzchar(path)) {
-    path <- file.path("inst", "extdata", "GrandTab Documentation.rtf")
+  if (!nzchar(path) || !file.exists(path)) {
+    path <- file.path("inst", "extdata", "GrandTab_Documentation.txt")
   }
 
   if (!nzchar(path) || !file.exists(path)) {
-    stop("GrandTab Documentation.rtf not found. ",
+    stop("GrandTab_Documentation.txt not found. ",
          "Please reinstall the grandtab package.", call. = FALSE)
   }
 
-  os <- .Platform$OS.type
-  if (Sys.info()[["sysname"]] == "Darwin") {
-    system2("open", shQuote(path))
-  } else if (os == "windows") {
+  sysname <- Sys.info()[["sysname"]]
+  if (sysname == "Darwin") {
+    system2("open", c("-t", shQuote(path)))
+  } else if (.Platform$OS.type == "windows") {
     shell.exec(path)
   } else {
+    # Linux and other Unix-like systems
     system2("xdg-open", shQuote(path))
   }
 
