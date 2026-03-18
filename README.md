@@ -1,6 +1,6 @@
 # grandtab
 
-**grandtab** is an R package that provides programmatic access to California Department of Fish and Wildlife [GrandTab](https://wildlife.ca.gov/Conservation/Fishes/Chinook-Salmon/Escapement) Chinook salmon escapement data for all four Central Valley runs: fall, late-fall, winter, and spring. The grandtab package draws from a stored database that is automatically repopulated within 24 hours of each new CDFW GrandTab update.  .
+**grandtab** is an R package that provides programmatic access to California Department of Fish and Wildlife [GrandTab](https://wildlife.ca.gov/Conservation/Fishes/Chinook-Salmon/Escapement) Chinook salmon escapement data for all four Central Valley runs: fall, late-fall, winter, and spring. The grandtab package draws from a stored database that is automatically repopulated within 24 hours of each new CDFW GrandTab update.
 
 NOTE: grandtab is a work in progress. While the data are guaranteed to be correct, minor errors in functionality and documentation may occur. If you discover an error, please open a GitHub issue and the author will correct it in short order.
 
