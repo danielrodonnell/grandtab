@@ -15,7 +15,15 @@ source("data-raw/update_stored_grandtab.R")
 
 # 1. Resolve latest Sonnet model and PDF URL, then download
 MODEL    <- get_latest_sonnet_model()
-pdf_path <- download_grandtab(url = get_latest_grandtab_url())
+pdf_path <- tryCatch(
+  download_grandtab(url = get_latest_grandtab_url()),
+  error = function(e) {
+    message("Could not download GrandTab PDF: ", conditionMessage(e),
+            "\nSkipping update.")
+    writeLines("UPDATE_NEEDED=false", Sys.getenv("GITHUB_OUTPUT"))
+    quit(save = "no", status = 0)
+  }
+)
 
 # 2. Load baseline
 load("data/grandtab_detail.rda")
@@ -48,7 +56,7 @@ if (any(grepl("already up to date", result, ignore.case = TRUE))) {
   save(grandtab_detail, file = "data/grandtab_detail.rda", compress = "xz")
   message("Saved updated grandtab_detail.rda")
 
-  # 6. Update intro documentation RTF
+  # 6. Update intro documentation text
   update_grandtab_info(pdf_path)
 
   writeLines("UPDATE_NEEDED=true", Sys.getenv("GITHUB_OUTPUT"))

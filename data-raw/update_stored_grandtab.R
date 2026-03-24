@@ -157,6 +157,17 @@ download_grandtab <- function(url = GRANDTAB_URL,
                               dest = "data-raw/grandtab.pdf") {
   dir.create(dirname(dest), showWarnings = FALSE, recursive = TRUE)
   download.file(url, dest, mode = "wb")
+
+  # Validate the downloaded file is actually a PDF (starts with %PDF)
+  con    <- file(dest, "rb")
+  header <- readBin(con, "raw", n = 4L)
+  close(con)
+  if (!identical(rawToChar(header), "%PDF")) {
+    file.remove(dest)
+    stop("Downloaded file is not a PDF (server may have returned an error page). ",
+         "URL: ", url, call. = FALSE)
+  }
+
   message("Downloaded PDF to ", dest)
   dest
 }
@@ -614,29 +625,30 @@ build_summary <- function(detail) {
   )
 }
 
-# -- Update GrandTab intro documentation RTF ---------------------------------
+# -- Update GrandTab intro documentation TXT ---------------------------------
 
-#' Update the GrandTab documentation RTF to match the current PDF
+#' Update the GrandTab documentation plain-text file to match the current PDF
 #'
 #' Renders the first two pages of the PDF (intro text) and sends them to Claude
-#' along with the existing RTF source. Claude updates only the text content
-#' (words, dates, numbers) while preserving all RTF control codes and formatting.
+#' along with the existing plain-text source. Claude updates only the text
+#' content (words, dates, numbers) while preserving the overall structure.
 #'
 #' @param pdf_path Local path to the GrandTab PDF
 #' @param img_dir Directory for rendered page PNGs
 update_grandtab_info <- function(pdf_path, img_dir = "data-raw/pages") {
-  rtf_path <- "inst/extdata/GrandTab Documentation.rtf"
+  txt_path <- "inst/extdata/GrandTab_Documentation.txt"
 
-  if (!file.exists(rtf_path)) {
-    warning("RTF file not found at ", rtf_path, "; skipping documentation update.")
+  if (!file.exists(txt_path)) {
+    warning("Documentation file not found at ", txt_path,
+            "; skipping documentation update.")
     return(invisible(NULL))
   }
 
   # 1. Render intro pages (1-2) to PNGs
   render_pages(pdf_path, 1:2, out_dir = img_dir)
 
-  # 2. Read existing RTF
-  rtf_text <- paste(readLines(rtf_path, warn = FALSE), collapse = "\n")
+  # 2. Read existing plain text
+  txt_text <- paste(readLines(txt_path, warn = FALSE), collapse = "\n")
 
   # 3. Encode page images to base64
   img_content <- lapply(1:2, \(pg) {
@@ -651,31 +663,30 @@ update_grandtab_info <- function(pdf_path, img_dir = "data-raw/pages") {
 
   # 4. Build prompt
   prompt <- sprintf("
-I have an existing RTF file whose complete source is shown below. The RTF contains
-the introductory text from a GrandTab PDF document.
+I have an existing plain-text file whose complete contents are shown below. The file
+contains the introductory text from a GrandTab PDF document.
 
 I am also providing PNG images of the first two pages of the CURRENT version of the
 GrandTab PDF. The text content may have changed (new dates, updated wording, etc.).
 
-Your task: update the RTF so its TEXT content matches the PDF images, while
-preserving EVERY RTF control code exactly as-is.
+Your task: update the plain text so its content matches the PDF images, while
+preserving the overall structure and formatting (paragraph breaks, spacing).
 
 Rules:
-- Return the COMPLETE updated RTF file, starting with {\\rtf1 and ending with }
+- Return the COMPLETE updated plain-text file
 - Change ONLY text content (words, dates, numbers, names) to match the PDF images
-- Preserve every RTF control code, font definition, color table, paragraph format
-- Keep the exact same structural layout (line breaks, paragraph breaks, formatting)
-- If the text is already up to date, return the RTF unchanged
-- No commentary, no markdown fences — just the raw RTF source
+- Preserve paragraph structure and line spacing
+- If the text is already up to date, return it unchanged
+- No commentary, no markdown fences — just the raw plain text
 
-Existing RTF source:
+Existing text:
 %s
-", rtf_text)
+", txt_text)
 
   # 5. Build message and call Claude API
   msg_content <- c(img_content, list(list(type = "text", text = prompt)))
 
-  new_rtf <- claudeR(
+  new_txt <- claudeR(
     prompt      = list(list(role = "user", content = msg_content)),
     model       = MODEL,
     max_tokens  = 8192L,
@@ -684,25 +695,16 @@ Existing RTF source:
     top_k       = NULL
   )
 
-  # 6. Validate response
-  if (!startsWith(trimws(new_rtf), "{\\rtf1")) {
-    warning("Claude response does not look like valid RTF; skipping update.")
+  # 6. Validate response (should be non-empty plain text)
+  if (!nzchar(trimws(new_txt))) {
+    warning("Claude returned an empty response; skipping documentation update.")
     return(invisible(NULL))
   }
 
-  # Check balanced braces
-  n_open  <- nchar(gsub("[^{]", "", new_rtf))
-  n_close <- nchar(gsub("[^}]", "", new_rtf))
-  if (n_open != n_close) {
-    warning("RTF has unbalanced braces (", n_open, " open, ", n_close,
-            " close); skipping update.")
-    return(invisible(NULL))
-  }
-
-  # 7. Write updated RTF
-  writeLines(new_rtf, rtf_path, useBytes = TRUE)
-  message("Updated GrandTab documentation RTF.")
-  invisible(rtf_path)
+  # 7. Write updated plain text
+  writeLines(new_txt, txt_path)
+  message("Updated GrandTab documentation text.")
+  invisible(txt_path)
 }
 
 # -- Run everything -----------------------------------------------------------
