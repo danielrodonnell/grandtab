@@ -7,17 +7,22 @@
 get_grandtab_raw(table = NULL)
 }
 \arguments{
-\item{table}{A table identifier. Accepts a \code{numeric} table number or 
+\item{table}{A table identifier. Accepts a \code{numeric} table number or
 vector of table numbers of length < 12. If \code{table} is \code{NULL}
-(default), returns all 11 GrandTab tables as a named list of tibbles.}
+(default), returns \code{\link{grandtab_raw}} — all 11 GrandTab tables.}
 }
 \value{
-A tibble (if \code{length(table)} = 1) or a named list of tibbles.
+\code{\link{grandtab_raw}} when \code{table = NULL}; a named list of
+  tibbles when \code{table} is a vector; a named list of length 1 when
+  \code{table} is a scalar.
 }
 \description{
-Returns unaltered GrandTab tables (almost) exactly as they appear in the 
-online GrandTab PDF. Can be piped to \code{\link{get_column_notes}} to 
-retrieve column footnotes as they appear in the GrandTab PDF.
+Returns unaltered GrandTab tables (almost) exactly as they appear in the
+online GrandTab PDF. When called with no arguments, \code{get_grandtab_raw()}
+is equivalent to typing \code{\link{grandtab_raw}} directly; use the
+\code{table} argument to retrieve one or more specific tables. Can be piped
+to \code{\link{get_column_notes}} to retrieve column footnotes as they
+appear in the GrandTab PDF.
 }
 \examples{
 # Single table
@@ -26,9 +31,9 @@ get_grandtab_raw(2)
 # Selected tables
 get_grandtab_raw(2:4)
 
-# All tables
+# All tables — equivalent to typing grandtab_raw
 get_grandtab_raw()
 
 # Pipe to get_column_notes
-# get_grandtab_raw(2) \%>\% get_column_notes("3/)
+# get_grandtab_raw(2) \%>\% get_column_notes("3/")
 }

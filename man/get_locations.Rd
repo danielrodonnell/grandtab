@@ -18,9 +18,9 @@ get_locations(
 \item{river_system}{Character. River system to filter by: \code{"sacramento"},
 \code{"san joaquin"}, \code{"feather"}, or \code{NULL} for all.}
 
-\item{location}{Character. Specific location or hatchery name to filter by,
-or \code{NULL} for all. If \code{"bear"}, an interactive menu prompts for
-Bear River or Bear Creek.}
+\item{location}{Character scalar or vector. Location or hatchery name(s) to
+filter by, or \code{NULL} for all. Unrecognised names produce a warning and
+are skipped.}
 
 \item{as_tibble}{Logical. If \code{TRUE}, return a single tidy tibble with
 a \code{run} column instead of a list of tibbles. Default \code{FALSE}.}

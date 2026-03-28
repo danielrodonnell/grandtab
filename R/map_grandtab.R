@@ -608,9 +608,13 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
 
   # Ensure the specified location's flowlines are always present, even if the
   # run or hatchery filter removed them. The map should always show the river.
+  # Capture which locations were filtered out BEFORE restoring, so the warning
+  # check below can still detect a run mismatch.
+  loc_filtered_out <- character(0)
   if (!is.null(loc_info)) {
     assoc <- unlist(loc_info$assoc_location)
     missing <- assoc[!assoc %in% spatial$flowlines$location_id]
+    loc_filtered_out <- missing
     if (length(missing) > 0) {
       spatial$flowlines <- rbind(
         spatial$flowlines,
@@ -619,36 +623,36 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     }
   }
 
-  # Warn if the location+run combination yields no matching streams — check
-  # this before the hatchery check so the right message fires first.
-  if (!is.null(loc_info) && !is.null(run_norm) && nrow(spatial$flowlines) > 0) {
+  # Warn if the run filter removed the location's flowlines — check this before
+  # the hatchery check so the right message fires first.
+  run_mismatch_warned <- FALSE
+  if (!is.null(loc_info) && !is.null(run_norm) && length(loc_filtered_out) > 0) {
     assoc_locs <- if (is.list(loc_info$assoc_location))
       unlist(loc_info$assoc_location) else loc_info$assoc_location
-    loc_in_map <- any(assoc_locs %in% spatial$flowlines$location_id)
-    if (!loc_in_map) {
-      run_label_map <- c(lf = "Late-Fall Run", w = "Winter Run",
-                         s  = "Spring Run",    f  = "Fall Run")
-      run_str <- if (length(run_norm) == 1) run_label_map[run_norm]
-                 else paste(run_label_map[run_norm], collapse = " or ")
-      meta <- spatial$location_meta
-      dn_vals <- meta$display_name[
-        meta$location_id %in% assoc_locs[assoc_locs %in% spatial$location_meta$location_id]]
-      loc_name <- if (length(dn_vals) >= 1) dn_vals[1] else loc_info$id
-      has_hatch <- any(meta$has_hatchery[meta$location_id %in% assoc_locs],
-                       na.rm = TRUE)
-      if (isTRUE(hatchery) && !has_hatch) {
-        warning("There is no ", run_str, " escapement or hatchery ",
-                .loc_phrase(loc_name, "on"), ".", call. = FALSE)
-      } else {
-        warning("There is no ", run_str, " escapement ",
-                .loc_phrase(loc_name, "on"), ".", call. = FALSE)
-      }
+    run_label_map <- c(lf = "late-fall-run", w = "winter-run",
+                       s  = "spring-run",    f  = "fall-run")
+    run_str <- if (length(run_norm) == 1) run_label_map[run_norm]
+               else paste(run_label_map[run_norm], collapse = " or ")
+    meta <- spatial$location_meta
+    dn_vals <- meta$display_name[
+      meta$location_id %in% assoc_locs[assoc_locs %in% spatial$location_meta$location_id]]
+    loc_name <- if (length(dn_vals) >= 1) dn_vals[1] else loc_info$id
+    has_hatch <- any(meta$has_hatchery[meta$location_id %in% assoc_locs],
+                     na.rm = TRUE)
+    if (isTRUE(hatchery) && !has_hatch) {
+      warning("There is no ", run_str, " escapement or hatchery ",
+              .loc_phrase(loc_name, "on"), ".", call. = FALSE)
+    } else {
+      warning("There is no ", run_str, " escapement ",
+              .loc_phrase(loc_name, "on"), ".", call. = FALSE)
     }
+    run_mismatch_warned <- TRUE
   }
 
   # When show_hatcheries=TRUE and the location has no hatchery, message and continue.
   # show_hatcheries=NULL silently shows hatcheries only if they exist — no message.
-  if (isTRUE(show_hatcheries) && !is.null(loc_info) &&
+  # Skip if a run-mismatch warning was already issued (it already covers hatchery absence).
+  if (!run_mismatch_warned && isTRUE(show_hatcheries) && !is.null(loc_info) &&
       loc_info$type == "location") {
     assoc_locs <- if (is.list(loc_info$assoc_location))
       unlist(loc_info$assoc_location) else loc_info$assoc_location
@@ -671,8 +675,9 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     spatial$flowlines <- spatial$flowlines[spatial$flowlines$river_system == "sacramento", ]
   }
 
-  # Hatchery validation against location type
-  if (!is.null(hatchery) && !is.null(loc_info)) {
+  # Hatchery validation against location type.
+  # Skip if a run-mismatch warning was already issued (it already covers hatchery absence).
+  if (!run_mismatch_warned && !is.null(hatchery) && !is.null(loc_info)) {
     if (loc_info$type == "hatchery" && isFALSE(hatchery)) {
       stop(
         'hatchery cannot be FALSE when location is a hatchery.',
@@ -727,6 +732,12 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     if (length(map_section) == 0)
       stop("No fall run sections match the specified 'river_system'.",
            call. = FALSE)
+
+    # Warn if a non-fall run was explicitly requested alongside a section
+    if (!is.null(run_norm) && !"f" %in% run_norm) {
+      warning('Fall-run "Section" tables contain only fall-run escapement data.',
+              call. = FALSE)
+    }
   }
 
   # Compute which location_ids are visible on the map (used to filter hatcheries)

@@ -28,8 +28,12 @@ Vectors accepted for multiple locations.}
 
 \item{summary}{Logical. If \code{TRUE}, return summary-level data. Default \code{FALSE}.}
 
-\item{section}{Integer 1--4. Fall run geographic section (maps to
-Tables 8--11). Only valid for fall run.}
+\item{section}{Fall run geographic section(s). Accepts integers 1--4,
+Roman numerals \code{"I"}--\code{"IV"}, \code{"all"} (all four sections),
+or a vector of any of the above. Implies \code{run = "f"} when \code{run}
+is \code{NULL}. When \code{river_system} is also specified, sections are
+silently restricted to those belonging to that system (sections 1--3 for
+Sacramento; section 4 for San Joaquin).}
 
 \item{run_years}{Numeric vector of years to filter results to, or
 \code{NULL} (default) to return all years.}

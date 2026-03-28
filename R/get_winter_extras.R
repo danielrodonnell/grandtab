@@ -6,7 +6,11 @@ NULL
 #' Returns the supplementary Winter Run data from Table 4 (fish passing RBDD,
 #' angler harvest, and redd distribution above/below RBDD). These columns were
 #' split from the main Winter Run table (Table 3) because they are supporting
-#' data used to derive the mainstem in-river estimate.
+#' data used to derive the mainstem in-river estimate. NOTE:
+#' \code{\link{get_column_metadata}()} cannot retrieve metadata for this
+#' function via its usual arguments; use
+#' \code{get_column_metadata(get_winter_extras())} or pipe the two functions
+#' together instead.
 #'
 #' @param run_years Numeric vector of years to filter results to, or
 #'   \code{NULL} (default) to return all years.

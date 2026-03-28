@@ -399,7 +399,11 @@
 #'
 #' Returns a tibble of column metadata describing the columns that
 #' \code{\link{get_escapement}} would return for the same arguments. Can be
-#' used standalone or piped from \code{get_escapement()}.
+#' used standalone or piped from \code{get_escapement()}. NOTE:
+#' \code{get_column_metadata()} cannot retrieve metadata for
+#' \code{\link{get_winter_extras}()} via its usual arguments; use
+#' \code{get_column_metadata(get_winter_extras())} or pipe the two functions
+#' together instead.
 #'
 #' @param x A tibble or named list of tibbles from \code{get_escapement()},
 #'   when piped. Leave \code{NULL} (default) for standalone use.

@@ -728,6 +728,7 @@ if (interactive()) {
 
   # 5. Save
   grandtab_raw <- updated
+  class(grandtab_raw) <- c("grandtab_raw", "list")
   save(grandtab_raw, file = "data/grandtab_raw.rda", compress = "xz")
   message("Saved updated baseline.")
 

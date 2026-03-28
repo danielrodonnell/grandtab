@@ -12,7 +12,7 @@ map_grandtab(
   hatchery = NULL,
   base_map = c("CartoDB.Positron", "Esri.WorldImagery", "Esri.WorldTopoMap",
     "OpenTopoMap"),
-  show_hatcheries = TRUE
+  show_hatcheries = NULL
 )
 }
 \arguments{
@@ -46,10 +46,11 @@ Default \code{NULL} shows all streams.}
 \code{"CartoDB.Positron"} (default), \code{"Esri.WorldImagery"},
 \code{"Esri.WorldTopoMap"}, or \code{"OpenTopoMap"}.}
 
-\item{show_hatcheries}{Logical or \code{NULL}. Whether to display hatchery
-markers. Default \code{TRUE} shows all hatcheries whose stream is visible
-on the map. \code{FALSE} hides all markers. \code{NULL} shows only the
-hatchery associated with the selected location.}
+\item{show_hatcheries}{Logical or \code{NULL} (default). Controls hatchery
+marker display. \code{NULL} (default) shows hatchery markers wherever they
+exist for visible streams, silently. \code{TRUE} does the same but prints a
+message when the specified location has no associated hatchery.
+\code{FALSE} hides all hatchery markers.}
 }
 \value{
 Invisible \code{NULL}. Called for its side effect (interactive map).

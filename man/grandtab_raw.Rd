@@ -5,7 +5,7 @@
 \alias{grandtab_raw}
 \title{Raw GrandTab tables}
 \format{
-An object of class \code{list} of length 11.
+An object of class \code{grandtab_raw} (inherits from \code{list}) of length 11.
 }
 \source{
 California Department of Fish and Wildlife GrandTab
@@ -15,9 +15,10 @@ California Department of Fish and Wildlife GrandTab
 grandtab_raw
 }
 \description{
-A list of 11 elements, each representing one GrandTab data table. Element
-names (index 1--11) correspond to GrandTab table numbers. Each element is
-itself a list with two components:
+A list of 11 elements, each representing one GrandTab data table. Typing
+\code{grandtab_raw} is equivalent to calling \code{\link{get_grandtab_raw}()}
+with no arguments; use \code{\link{get_grandtab_raw}(table)} to retrieve one
+or more specific tables. Each element is a list with two components:
 \describe{
   \item{[[1]]}{Character scalar: the table title.}
   \item{[[2]]}{Data frame: the table data with original GrandTab column headers.}

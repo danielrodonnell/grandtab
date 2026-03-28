@@ -218,8 +218,8 @@ get_locations <- function(run = NULL, river_system = NULL, location = NULL,
   # -- Check for empty results after run/river_system filters ----------------
   if (!is.null(location) && nrow(all_rows) == 0) {
     if (!is.null(run_norm) && !identical(run_norm, "all")) {
-      run_label_map2 <- c(lf = "Late-Fall Run", w = "Winter Run",
-                          s  = "Spring Run",    f  = "Fall Run")
+      run_label_map2 <- c(lf = "late-fall-run", w = "winter-run",
+                          s  = "spring-run",    f  = "fall-run")
       run_str  <- paste(unname(run_label_map2[run_norm]), collapse = " or ")
       loc_disp <- if (length(loc_norms) == 1) {
         dn <- unname(.location_display_names[loc_norms])
@@ -238,8 +238,8 @@ get_locations <- function(run = NULL, river_system = NULL, location = NULL,
   } else if (is.null(location) && nrow(all_rows) == 0) {
     # No location filter but still empty (e.g. run + river_system combo)
     if (!is.null(run_norm) && !is.null(rs_norm)) {
-      run_label_map2 <- c(lf = "Late-Fall Run", w = "Winter Run",
-                          s  = "Spring Run",    f  = "Fall Run")
+      run_label_map2 <- c(lf = "late-fall-run", w = "winter-run",
+                          s  = "spring-run",    f  = "fall-run")
       run_str <- paste(unname(run_label_map2[run_norm[!is.na(run_norm)]]), collapse = " or ")
       rs_display <- c(sacramento = "Sacramento", san_joaquin = "San Joaquin",
                       feather = "Feather")
