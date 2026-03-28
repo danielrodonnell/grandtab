@@ -28,11 +28,11 @@ MODEL         <- "claude-sonnet-4-5-20250929"
 API_DELAY     <- 2  # seconds between API calls
 
 # Number of distinct data tables in the GrandTab PDF (10).
-# grandtab_detail has 11 entries because Table 3 (Winter main) and Table 4
+# grandtab_raw has 11 entries because Table 3 (Winter main) and Table 4
 # (Winter extras) are both derived from the same PDF pages.
 .N_PDF_TABLES <- 10L
 
-# Maps each grandtab_detail index (1-11) to its PDF table index (1-10).
+# Maps each grandtab_raw index (1-11) to its PDF table index (1-10).
 # Table 4 (winter extras) shares PDF pages with Table 3 (winter main).
 .PDF_TABLE_IDX <- c(1L, 2L, 3L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L)
 
@@ -269,13 +269,13 @@ detect_page_map <- function(pdf_path, baseline) {
 #' 5, and 6. Only checks rows with bracketed (provisional) years. Warns on
 #' mismatches.
 #'
-#' @param detail The grandtab_detail list (11 elements)
+#' @param detail The grandtab_raw list (11 elements)
 #' Check cross-table consistency and return indices of mismatched tables
 #'
 #' Returns a sorted integer vector of table indices (from 1-6) involved in
 #' mismatches. Empty integer(0) means everything is consistent.
 #'
-#' @param detail The grandtab_detail list (11 elements)
+#' @param detail The grandtab_raw list (11 elements)
 #' @return Integer vector of table indices that have mismatches
 validate_cross_table <- function(detail) {
   parse_num <- function(x) suppressWarnings(as.numeric(gsub(",", "", x)))
@@ -547,20 +547,19 @@ Rules:
   grandtab_sections <- build_sections(updated)
   grandtab_summary  <- build_summary(updated)
 
-  save(grandtab_sections, file = "data/grandtab_sections.rda", compress = "xz")
-  save(grandtab_summary, file = "data/grandtab_summary.rda", compress = "xz")
-  message("Saved grandtab_sections.rda and grandtab_summary.rda")
+  save(grandtab_sections, grandtab_summary, file = "R/sysdata.rda", compress = "xz")
+  message("Saved R/sysdata.rda (grandtab_sections and grandtab_summary)")
 
   updated
 }
 
-# -- Derive grandtab_sections from grandtab_detail ---------------------------
+# -- Derive grandtab_sections from grandtab_raw ---------------------------
 
 #' Build grandtab_sections from the detail list
 #'
 #' Combines detail tables 2-11 (all except "ALL RUNS") into a single wide
 #' data frame with a section_title column and the first column renamed to YEAR.
-#' @param detail The grandtab_detail list (11 elements)
+#' @param detail The grandtab_raw list (11 elements)
 #' @return A tibble
 build_sections <- function(detail) {
   lapply(detail[2:11], \(x) {
@@ -571,13 +570,13 @@ build_sections <- function(detail) {
   }) |> bind_rows()
 }
 
-# -- Derive grandtab_summary from grandtab_detail ---------------------------
+# -- Derive grandtab_summary from grandtab_raw ---------------------------
 
 #' Build grandtab_summary from the detail list
 #'
 #' Extracts the four run summaries (LATE-FALL, WINTER, SPRING, FALL) from
 #' detail table 1 ("ALL RUNS").
-#' @param detail The grandtab_detail list (11 elements)
+#' @param detail The grandtab_raw list (11 elements)
 #' @return A named list of 4 tibbles
 build_summary <- function(detail) {
   all_runs <- detail[[1]][[2]]
@@ -715,10 +714,10 @@ if (interactive()) {
   pdf_path <- download_grandtab(url = get_latest_grandtab_url())
 
   # 2. Load your baseline (adjust path as needed)
-  load("data/grandtab_detail.rda")
+  load("data/grandtab_raw.rda")
 
   # 3. Update
-  updated <- update_baseline(pdf_path, grandtab_detail)
+  updated <- update_baseline(pdf_path, grandtab_raw)
 
   # 4. Verify
   walk(updated, \(bl) {
@@ -728,8 +727,8 @@ if (interactive()) {
   })
 
   # 5. Save
-  grandtab_detail <- updated
-  save(grandtab_detail, file = "data/grandtab_detail.rda", compress = "xz")
+  grandtab_raw <- updated
+  save(grandtab_raw, file = "data/grandtab_raw.rda", compress = "xz")
   message("Saved updated baseline.")
 
   # 6. Update intro documentation RTF

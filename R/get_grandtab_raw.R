@@ -49,11 +49,11 @@ get_grandtab_raw <- function(table = NULL) {
       stop("'table' must be between 1 and 11. Invalid value(s): ",
            paste(bad, collapse = ", "), ".", call. = FALSE)
 
-    gt <- try(lapply(grandtab_detail[table], \(x) x[[2]]))
-    names(gt) <- try(lapply(grandtab_detail[table], \(x) x[[1]]))
+    gt <- try(lapply(grandtab_raw[table], \(x) x[[2]]))
+    names(gt) <- try(lapply(grandtab_raw[table], \(x) x[[1]]))
   } else {
-    gt <- try(lapply(grandtab_detail, \(x) x[[2]]))
-    names(gt) <- try(lapply(grandtab_detail, \(x) x[[1]]))
+    gt <- try(lapply(grandtab_raw, \(x) x[[2]]))
+    names(gt) <- try(lapply(grandtab_raw, \(x) x[[1]]))
   }
 
   if (inherits(gt, "try-error") | inherits(names(gt), "try-error") |

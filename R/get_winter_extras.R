@@ -28,7 +28,7 @@ get_winter_extras <- function(run_years = NULL) {
            call. = FALSE)
   }
 
-  raw <- grandtab_detail[[4]][[2]]
+  raw <- grandtab_raw[[4]][[2]]
 
   out <- tibble::tibble(
     run_year            = .derive_run_year(raw[["Winter YEAR"]]),

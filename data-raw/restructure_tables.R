@@ -3,9 +3,9 @@
 #
 # One-time migration script to:
 #   1. Split Winter Run Table 3 (cols 12-15 become new Table 4)
-#   2. Add footnote indicators to grandtab_detail column headers
+#   2. Add footnote indicators to grandtab_raw column headers
 #   3. Shift old Tables 4-10 to 5-11
-#   4. Apply same split+shift to grandtab_detail_short
+#   4. Apply same split+shift to grandtab_raw_short
 #   5. Rebuild grandtab_sections and grandtab_summary
 #   6. Save all 4 .rda files
 # =============================================================================
@@ -16,22 +16,22 @@ library(stringr)
 source("data-raw/update_stored_grandtab.R")
 
 # -- Load current data --------------------------------------------------------
-load("data/grandtab_detail.rda")
-load("data/grandtab_detail_short.rda")
+load("data/grandtab_raw.rda")
+load("data/grandtab_raw_short.rda")
 
-# -- 1. Split Table 3 in grandtab_detail -------------------------------------
+# -- 1. Split Table 3 in grandtab_raw -------------------------------------
 
-t3_full <- grandtab_detail[[3]][[2]]
-t3_title <- grandtab_detail[[3]][[1]]
+t3_full <- grandtab_raw[[3]][[2]]
+t3_title <- grandtab_raw[[3]][[1]]
 
 # Table 3 keeps cols 1-11, Table 4 (new) gets col 1 + cols 12-15
 t3_trimmed <- t3_full[, 1:11]
 t4_new <- t3_full[, c(1, 12:15)]
 
-# -- 2. Add footnote indicators to grandtab_detail column headers ------------
+# -- 2. Add footnote indicators to grandtab_raw column headers ------------
 
 # Table 2: RBDD1/, In-R 2/, CNFH 3/, TCFF 4/, Battle5/
-names(grandtab_detail[[2]][[2]]) <- c(
+names(grandtab_raw[[2]][[2]]) <- c(
   "Late-Fall YEAR",
   "Sac Main Up RBDD1/ In-R 2/",      # was "Sac Main Up RBDD In-R"
   "Sac Main Up RBDD trans CNFH 3/",   # was "Sac Main Up RBDD trans CNFH"
@@ -78,7 +78,7 @@ names(t4_new) <- c(
 
 # Table 4 (old, becoming 5): RBDD1/, Battle Ck 4/, Spawn 5/, Butte Ck 6/,
 # Feather In-R 2/, Feather Hatch 3/, TOTAL SPRING RUN 7/
-names(grandtab_detail[[4]][[2]]) <- c(
+names(grandtab_raw[[4]][[2]]) <- c(
   "YEAR",
   "Sac Main Up RBDD1/ In-R",          # was "Sac Main Up RBDD In-R"
   "Sac Main Dwn RBDD In-R",
@@ -102,7 +102,7 @@ names(grandtab_detail[[4]][[2]]) <- c(
 )
 
 # Table 5 (old, becoming 6): Sac System Hatch 1/, SJ System Hatch 2/
-names(grandtab_detail[[5]][[2]]) <- c(
+names(grandtab_raw[[5]][[2]]) <- c(
   "YEAR",
   "Sac System Hatch 1/",              # was "Sac System Hatch"
   "Sac System In-R",
@@ -117,7 +117,7 @@ names(grandtab_detail[[5]][[2]]) <- c(
 )
 
 # Table 6 (old, becoming 7): RBDD_PFerry Tribs In-R 1/
-names(grandtab_detail[[6]][[2]]) <- c(
+names(grandtab_raw[[6]][[2]]) <- c(
   "YEAR",
   "Kesw_RBDD CNFH",
   "Kesw_RBDD Main In-R",
@@ -134,7 +134,7 @@ names(grandtab_detail[[6]][[2]]) <- c(
 
 # Table 7 (old, becoming 8): Sac Main In-R 1/, CNFH 2/, Battle5/,
 # Up CNFH In-R 3/, Other 4/
-names(grandtab_detail[[7]][[2]]) <- c(
+names(grandtab_raw[[7]][[2]]) <- c(
   "YEAR",
   "Sac Main In-R 1/",                 # was "Sac Main In-R"
   "Sac Main trans CNFH 2/",           # was "Sac Main trans CNFH"
@@ -158,7 +158,7 @@ names(grandtab_detail[[7]][[2]]) <- c(
 )
 
 # Table 8 (old, becoming 9): Sac Main In-R 1/, TCFF 2/, Other 3/
-names(grandtab_detail[[8]][[2]]) <- c(
+names(grandtab_raw[[8]][[2]]) <- c(
   "YEAR",
   "Sac Main In-R 1/",                 # was "Sac Main In-R"
   "Sac Main trans TCFF 2/",           # was "Sac Main trans TCFF"
@@ -181,7 +181,7 @@ names(grandtab_detail[[8]][[2]]) <- c(
 
 # Table 9 (old, becoming 10): Butte Ck 1/, Feather In-R 2/,
 # Yuba R 3/, American In-R 4/5/
-names(grandtab_detail[[9]][[2]]) <- c(
+names(grandtab_raw[[9]][[2]]) <- c(
   "YEAR",
   "Butte Ck 1/",                       # was "Butte Ck"
   "Feather Hatch",
@@ -197,7 +197,7 @@ names(grandtab_detail[[9]][[2]]) <- c(
 )
 
 # Table 10 (old, becoming 11): Merced Hatch 1/
-names(grandtab_detail[[10]][[2]]) <- c(
+names(grandtab_raw[[10]][[2]]) <- c(
   "YEAR",
   "Cosumnes R",
   "Mokelumne Hatch",
@@ -210,23 +210,23 @@ names(grandtab_detail[[10]][[2]]) <- c(
   "Merced TOTAL"
 )
 
-# -- 3. Reassemble grandtab_detail as 11 elements ----------------------------
+# -- 3. Reassemble grandtab_raw as 11 elements ----------------------------
 
 new_t4_entry <- list(
   "WINTER RUN: Sacramento Mainstem Winter (additional) Data 1/",
   t4_new
 )
 
-grandtab_detail <- c(
-  grandtab_detail[1:2],               # Tables 1-2 unchanged
-  list(list(grandtab_detail[[3]][[1]], t3_trimmed)),  # Table 3 trimmed
+grandtab_raw <- c(
+  grandtab_raw[1:2],               # Tables 1-2 unchanged
+  list(list(grandtab_raw[[3]][[1]], t3_trimmed)),  # Table 3 trimmed
   list(new_t4_entry),                  # NEW Table 4
-  grandtab_detail[4:10]               # Old 4-10 become 5-11
+  grandtab_raw[4:10]               # Old 4-10 become 5-11
 )
 
-# -- 4. Split + shift grandtab_detail_short -----------------------------------
+# -- 4. Split + shift grandtab_raw_short -----------------------------------
 
-t3s_full <- grandtab_detail_short[[3]][[2]]
+t3s_full <- grandtab_raw_short[[3]][[2]]
 
 t3s_trimmed <- t3s_full[, 1:11]
 t4s_new <- t3s_full[, c(1, 12:15)]
@@ -236,25 +236,24 @@ new_t4s_entry <- list(
   t4s_new
 )
 
-grandtab_detail_short <- c(
-  grandtab_detail_short[1:2],
-  list(list(grandtab_detail_short[[3]][[1]], t3s_trimmed)),
+grandtab_raw_short <- c(
+  grandtab_raw_short[1:2],
+  list(list(grandtab_raw_short[[3]][[1]], t3s_trimmed)),
   list(new_t4s_entry),
-  grandtab_detail_short[4:10]
+  grandtab_raw_short[4:10]
 )
 
 # -- 5. Rebuild derived datasets -----------------------------------------------
 
-grandtab_sections <- build_sections(grandtab_detail)
-grandtab_summary  <- build_summary(grandtab_detail)
+grandtab_sections <- build_sections(grandtab_raw)
+grandtab_summary  <- build_summary(grandtab_raw)
 
 # -- 6. Save all .rda files ---------------------------------------------------
 
-save(grandtab_detail, file = "data/grandtab_detail.rda", compress = "xz")
-save(grandtab_detail_short, file = "data/grandtab_detail_short.rda", compress = "xz")
-save(grandtab_sections, file = "data/grandtab_sections.rda", compress = "xz")
-save(grandtab_summary, file = "data/grandtab_summary.rda", compress = "xz")
+save(grandtab_raw, file = "data/grandtab_raw.rda", compress = "xz")
+save(grandtab_raw_short, file = "data/grandtab_raw_short.rda", compress = "xz")
+save(grandtab_sections, grandtab_summary, file = "R/sysdata.rda", compress = "xz")
 
 message("All 4 .rda files rebuilt successfully.")
-message("grandtab_detail: ", length(grandtab_detail), " tables")
-message("grandtab_detail_short: ", length(grandtab_detail_short), " tables")
+message("grandtab_raw: ", length(grandtab_raw), " tables")
+message("grandtab_raw_short: ", length(grandtab_raw_short), " tables")

@@ -7,7 +7,7 @@
 # ============================================================================
 
 # -- Column name mappings per table -------------------------------------------
-# Named vectors: grandtab_detail column name -> snake_case base name
+# Named vectors: grandtab_raw column name -> snake_case base name
 # Run prefix (lf_, w_, s_, f_) added dynamically. Special values:
 #   "spawn_period" -> {run}_spawn_period
 #   "run_year"     -> run_year (no prefix)
@@ -701,7 +701,7 @@
 }
 
 .prepare_table <- function(table_idx, run_abbrev) {
-  raw <- grandtab_detail[[table_idx]][[2]]
+  raw <- grandtab_raw[[table_idx]][[2]]
   col_map <- .col_maps[[as.character(table_idx)]]
   first_snake <- unname(col_map[1])
 
@@ -722,7 +722,7 @@
 }
 
 .extract_t1_run <- function(run_abbrev) {
-  t1   <- grandtab_detail[[1]][[2]]
+  t1   <- grandtab_raw[[1]][[2]]
   info <- .t1_run_cols[[run_abbrev]]
 
   if (info$year_col %in% c("Late-Fall YEAR", "Winter YEAR")) {
@@ -740,7 +740,7 @@
 }
 
 .prepare_full_t1 <- function() {
-  t1 <- grandtab_detail[[1]][[2]]
+  t1 <- grandtab_raw[[1]][[2]]
   tibble::tibble(
     run_year        = t1[["YEAR"]],
     lf_spawn_period = t1[["Late-Fall YEAR"]],
@@ -770,7 +770,7 @@
 }
 
 .extract_location_from_table <- function(table_idx, run_abbrev, loc_names) {
-  raw     <- grandtab_detail[[table_idx]][[2]]
+  raw     <- grandtab_raw[[table_idx]][[2]]
   col_map <- .col_maps[[as.character(table_idx)]]
   first_snake <- unname(col_map[1])
 
@@ -1098,10 +1098,10 @@
   for (idx in sel_idx) {
     if (idx == 1L) {
       tbl  <- .extract_t1_run("f")
-      name <- grandtab_detail[[1]][[1]]
+      name <- grandtab_raw[[1]][[1]]
     } else {
       tbl  <- .prepare_table(idx, "f")
-      name <- grandtab_detail[[idx]][[1]]
+      name <- grandtab_raw[[idx]][[1]]
     }
     result[[name]] <- tbl
   }
@@ -1120,7 +1120,7 @@
 
 .extract_tcff_data <- function() {
   # TCFF hatchery escapement: standalone column in fall table 9
-  raw <- grandtab_detail[[9L]][[2]]
+  raw <- grandtab_raw[[9L]][[2]]
   tibble::tibble(run_year = raw[["YEAR"]], f_tcff = raw[["TCFF"]])
 }
 
@@ -1145,7 +1145,7 @@
 
 # Helper: build a raw (pre-filter) TCFF fall tibble from table 9
 .raw_tcff_fall <- function() {
-  raw9 <- grandtab_detail[[9L]][[2]]
+  raw9 <- grandtab_raw[[9L]][[2]]
   tibble::tibble(run_year = raw9[["YEAR"]], f_tcff = raw9[["TCFF"]])
 }
 
@@ -1248,7 +1248,7 @@
   if (!interactive()) {
     result <- list()
     for (idx in c(8L, 9L, 10L)) {
-      result[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
+      result[[grandtab_raw[[idx]][[1]]]] <- .prepare_table(idx, "f")
     }
     return(result)
   }
@@ -1263,7 +1263,7 @@
 
   result <- list()
   for (idx in sel_idx) {
-    result[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
+    result[[grandtab_raw[[idx]][[1]]]] <- .prepare_table(idx, "f")
   }
   if (length(result) == 1) return(result[[1]])
   result
@@ -1286,10 +1286,10 @@
 
   result <- list()
   if (.fall_table_titles[["8"]] %in% selected)
-    result[[grandtab_detail[[8]][[1]]]] <-
+    result[[grandtab_raw[[8]][[1]]]] <-
       .extract_location_from_table(8L, "f", "sac_main")
   if (.fall_table_titles[["9"]] %in% selected)
-    result[[grandtab_detail[[9]][[1]]]] <-
+    result[[grandtab_raw[[9]][[1]]]] <-
       .extract_location_from_table(9L, "f", "sac_main")
   if (length(result) == 1) return(result[[1]])
   result
@@ -1423,7 +1423,7 @@
     result <- list()
     for (s in section) {
       idx  <- .section_to_table[as.character(s)]
-      result[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
+      result[[grandtab_raw[[idx]][[1]]]] <- .prepare_table(idx, "f")
     }
     return(result)
   }
@@ -1482,7 +1482,7 @@
   result <- list()
   for (idx in c(2L, 3L, 5L, 8L, 9L, 10L, 11L)) {
     ra   <- .table_run[as.character(idx)]
-    name <- grandtab_detail[[idx]][[1]]
+    name <- grandtab_raw[[idx]][[1]]
     result[[name]] <- .prepare_table(idx, ra)
   }
   result
@@ -1508,7 +1508,7 @@
             sec_list <- list()
             for (s in section) {
               idx <- .section_to_table[as.character(s)]
-              sec_list[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
+              sec_list[[grandtab_raw[[idx]][[1]]]] <- .prepare_table(idx, "f")
             }
             sec_list
           }
@@ -1518,7 +1518,7 @@
           # Multi-run context: return all fall section tables
           fl <- list()
           for (idx in c(8L, 9L, 10L, 11L)) {
-            fl[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
+            fl[[grandtab_raw[[idx]][[1]]]] <- .prepare_table(idx, "f")
           }
           fl
         }
@@ -1584,10 +1584,10 @@
 
   # No filters — return all 11 tables in order with snake_case column names
   result <- list()
-  result[[grandtab_detail[[1]][[1]]]] <- .prepare_full_t1()
+  result[[grandtab_raw[[1]][[1]]]] <- .prepare_full_t1()
   for (idx in 2:11) {
     ra   <- .table_run[as.character(idx)]
-    name <- grandtab_detail[[idx]][[1]]
+    name <- grandtab_raw[[idx]][[1]]
     result[[name]] <- .prepare_table(idx, ra)
   }
   result

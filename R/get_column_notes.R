@@ -6,7 +6,7 @@
 # ============================================================================
 
 # -- Internal footnote text per table ----------------------------------------
-# Positional list (indices 1-11) matching grandtab_detail table numbers.
+# Positional list (indices 1-11) matching grandtab_raw table numbers.
 # Each element is a named character vector keyed by footnote number.
 
 .footnotes <- list(
@@ -223,7 +223,7 @@
 #' # get_grandtab_raw() %>% get_column_notes() # Retrieve all footnotes for all tables
 get_column_notes <- function(table = NULL, footnote = NULL) {
 
-  titles <- vapply(grandtab_detail, `[[`, character(1), 1L)
+  titles <- vapply(grandtab_raw, `[[`, character(1), 1L)
 
   # -- Parse footnote argument ------------------------------------------------
   if (!is.null(footnote)) {
@@ -245,8 +245,8 @@ get_column_notes <- function(table = NULL, footnote = NULL) {
     if (is.null(tbl_num)) {
       # Match piped tibble by column-name signature
       tbl_cols <- names(table)
-      for (i in seq_along(grandtab_detail)) {
-        ref_cols <- names(grandtab_detail[[i]][[2]])
+      for (i in seq_along(grandtab_raw)) {
+        ref_cols <- names(grandtab_raw[[i]][[2]])
         if (length(tbl_cols) <= length(ref_cols) &&
             all(tbl_cols %in% ref_cols)) {
           tbl_num <- i
@@ -265,8 +265,8 @@ get_column_notes <- function(table = NULL, footnote = NULL) {
       if (!is.null(n)) return(as.integer(n))
       # Match by column-name signature
       x_cols <- names(x)
-      for (i in seq_along(grandtab_detail)) {
-        ref_cols <- names(grandtab_detail[[i]][[2]])
+      for (i in seq_along(grandtab_raw)) {
+        ref_cols <- names(grandtab_raw[[i]][[2]])
         if (length(x_cols) <= length(ref_cols) &&
             all(x_cols %in% ref_cols)) return(as.integer(i))
       }

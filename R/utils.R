@@ -1,1 +1,1 @@
-utils::globalVariables(c("grandtab_detail", ".data"))
+utils::globalVariables(c("grandtab_raw", ".data"))

@@ -24,24 +24,4 @@
 #'
 #' @source California Department of Fish and Wildlife GrandTab
 #'   (\url{https://wildlife.ca.gov/Conservation/Fishes/Chinook-Salmon/Escapement})
-"grandtab_detail"
-
-#' GrandTab data in wide tidy format
-#'
-#' All 11 GrandTab tables joined into a single wide tibble with 677 rows (one
-#' per run year and spawning period combination across all runs) and 112 columns.
-#' Column names use the original GrandTab headers. This is a convenience dataset
-#' for users who prefer a single wide table; for most analytical use cases,
-#' \code{\link{get_escapement}} is recommended.
-#'
-#' @source California Department of Fish and Wildlife GrandTab
-"grandtab_sections"
-
-#' GrandTab Central Valley run summaries
-#'
-#' A named list with four elements (\code{LATE-FALL}, \code{WINTER},
-#' \code{SPRING}, \code{FALL}), each a tibble containing the annual total
-#' escapement for that run from Table 1 (ALL RUNS: Central Valley).
-#'
-#' @source California Department of Fish and Wildlife GrandTab
-"grandtab_summary"
+"grandtab_raw"

@@ -26,13 +26,13 @@ pdf_path <- tryCatch(
 )
 
 # 2. Load baseline
-load("data/grandtab_detail.rda")
+load("data/grandtab_raw.rda")
 
 # 3. Run update — capture cat() output and warnings
 warnings_log <- character(0)
 result <- capture.output(
   withCallingHandlers(
-    updated <- update_baseline(pdf_path, grandtab_detail),
+    updated <- update_baseline(pdf_path, grandtab_raw),
     warning = function(w) {
       warnings_log <<- c(warnings_log, conditionMessage(w))
       invokeRestart("muffleWarning")
@@ -52,9 +52,9 @@ if (any(grepl("already up to date", result, ignore.case = TRUE))) {
   writeLines("UPDATE_NEEDED=false", Sys.getenv("GITHUB_OUTPUT"))
 } else {
   # 5. Save updated detail (sections and summary already saved by update_baseline)
-  grandtab_detail <- updated
-  save(grandtab_detail, file = "data/grandtab_detail.rda", compress = "xz")
-  message("Saved updated grandtab_detail.rda")
+  grandtab_raw <- updated
+  save(grandtab_raw, file = "data/grandtab_raw.rda", compress = "xz")
+  message("Saved updated grandtab_raw.rda")
 
   # 6. Update intro documentation text
   update_grandtab_info(pdf_path)
