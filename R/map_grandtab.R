@@ -601,6 +601,26 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     loc_info <- .normalize_map_location(location, if (is_sac) section else NULL)
   }
 
+  # Error if the location+run combination yields no matching streams — check
+  # this before the hatchery check so the right message fires first.
+  if (!is.null(loc_info) && !is.null(run_norm) && nrow(spatial$flowlines) > 0) {
+    assoc_locs <- if (is.list(loc_info$assoc_location))
+      unlist(loc_info$assoc_location) else loc_info$assoc_location
+    loc_in_map <- any(assoc_locs %in% spatial$flowlines$location_id)
+    if (!loc_in_map) {
+      run_label_map <- c(lf = "Late-Fall Run", w = "Winter Run",
+                         s  = "Spring Run",    f  = "Fall Run")
+      run_str <- if (length(run_norm) == 1) run_label_map[run_norm]
+                 else paste(run_label_map[run_norm], collapse = " or ")
+      meta <- spatial$location_meta
+      dn_vals <- meta$display_name[
+        meta$location_id %in% assoc_locs[assoc_locs %in% spatial$location_meta$location_id]]
+      loc_name <- if (length(dn_vals) >= 1) dn_vals[1] else loc_info$id
+      stop("There is no ", run_str, " escapement ",
+           .loc_phrase(loc_name, "on"), ".", call. = FALSE)
+    }
+  }
+
   # When show_hatcheries=TRUE and a specific location is given, error if no hatchery
   if (isTRUE(show_hatcheries) && !is.null(loc_info) &&
       loc_info$type == "location") {
@@ -614,26 +634,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       dn <- if (length(dn_vals) == 1) dn_vals
             else if (length(dn_vals) > 1) paste(dn_vals, collapse = " / ")
             else loc_info$id
-      stop("There is no hatchery on ", dn, ".", call. = FALSE)
-    }
-  }
-
-  # Error if the location+run combination yields no matching streams
-  if (!is.null(loc_info) && !is.null(run_norm) && nrow(spatial$flowlines) > 0) {
-    assoc_locs <- if (is.list(loc_info$assoc_location))
-      unlist(loc_info$assoc_location) else loc_info$assoc_location
-    loc_in_map <- any(assoc_locs %in% spatial$flowlines$location_id)
-    if (!loc_in_map) {
-      run_label_map <- c(lf = "late-fall run", w = "winter run",
-                         s  = "spring run",    f  = "fall run")
-      run_str <- if (length(run_norm) == 1) run_label_map[run_norm]
-                 else paste(run_label_map[run_norm], collapse = " or ")
-      meta <- spatial$location_meta
-      dn_vals <- meta$display_name[
-        meta$location_id %in% assoc_locs[assoc_locs %in% spatial$location_meta$location_id]]
-      loc_name <- if (length(dn_vals) >= 1) dn_vals[1] else loc_info$id
-      stop("There is no ", run_str, " escapement in the ",
-           loc_name, ".", call. = FALSE)
+      stop("There is no hatchery ", .loc_phrase(dn, "on"), ".", call. = FALSE)
     }
   }
 
@@ -658,7 +659,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       if (!has_hatch) {
         dn_vals <- meta$display_name[meta$location_id %in% assoc_locs]
         dn <- if (length(dn_vals) == 1) dn_vals else loc_info$id
-        stop("There is no hatchery on ", dn, ".", call. = FALSE)
+        stop("There is no hatchery ", .loc_phrase(dn, "on"), ".", call. = FALSE)
       }
     }
   }
