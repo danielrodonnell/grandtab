@@ -546,6 +546,8 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
   .check_map_deps()
 
   spatial <- .load_spatial()
+  # Keep a full copy so a specified location can always be added back after filters
+  full_flowlines <- spatial$flowlines
 
   # Filter flowlines to streams that have data for any of the requested runs
   run_norm <- if (!is.null(run)) vapply(run, .normalize_run, character(1)) else NULL
@@ -604,7 +606,20 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     loc_info <- .normalize_map_location(location, if (is_sac) section else NULL)
   }
 
-  # Error if the location+run combination yields no matching streams — check
+  # Ensure the specified location's flowlines are always present, even if the
+  # run or hatchery filter removed them. The map should always show the river.
+  if (!is.null(loc_info)) {
+    assoc <- unlist(loc_info$assoc_location)
+    missing <- assoc[!assoc %in% spatial$flowlines$location_id]
+    if (length(missing) > 0) {
+      spatial$flowlines <- rbind(
+        spatial$flowlines,
+        full_flowlines[full_flowlines$location_id %in% missing, ]
+      )
+    }
+  }
+
+  # Warn if the location+run combination yields no matching streams — check
   # this before the hatchery check so the right message fires first.
   if (!is.null(loc_info) && !is.null(run_norm) && nrow(spatial$flowlines) > 0) {
     assoc_locs <- if (is.list(loc_info$assoc_location))
@@ -622,11 +637,11 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       has_hatch <- any(meta$has_hatchery[meta$location_id %in% assoc_locs],
                        na.rm = TRUE)
       if (isTRUE(hatchery) && !has_hatch) {
-        stop("There is no ", run_str, " escapement or hatchery ",
-             .loc_phrase(loc_name, "on"), ".", call. = FALSE)
+        warning("There is no ", run_str, " escapement or hatchery ",
+                .loc_phrase(loc_name, "on"), ".", call. = FALSE)
       } else {
-        stop("There is no ", run_str, " escapement ",
-             .loc_phrase(loc_name, "on"), ".", call. = FALSE)
+        warning("There is no ", run_str, " escapement ",
+                .loc_phrase(loc_name, "on"), ".", call. = FALSE)
       }
     }
   }
@@ -645,7 +660,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       dn <- if (length(dn_vals) == 1) dn_vals
             else if (length(dn_vals) > 1) paste(dn_vals, collapse = " / ")
             else loc_info$id
-      message("There is no hatchery ", .loc_phrase(dn, "on"), ".")
+      warning("There is no hatchery ", .loc_phrase(dn, "on"), ".", call. = FALSE)
     }
   }
   # show_hatcheries=NULL: treat as TRUE (show if present) with no messaging
@@ -671,7 +686,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       if (!has_hatch) {
         dn_vals <- meta$display_name[meta$location_id %in% assoc_locs]
         dn <- if (length(dn_vals) == 1) dn_vals else loc_info$id
-        message("There is no hatchery ", .loc_phrase(dn, "on"), ".")
+        warning("There is no hatchery ", .loc_phrase(dn, "on"), ".", call. = FALSE)
       }
     }
   }
