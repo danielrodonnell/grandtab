@@ -1781,6 +1781,8 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
         good_locs <- c(good_locs, loc)
       }
     }
+    run_labels_lc <- c(lf = "late-fall-run", w = "winter-run",
+                        s  = "spring-run",   f  = "fall-run")
     if (length(bad_locs) > 0) {
       if (length(good_locs) == 0) {
         # All locations are incompatible — error
@@ -1789,8 +1791,18 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
           if (!is.na(dn)) dn else l
         }, character(1))
         if (length(dn_all) == 1) {
-          stop("There is no ", run_labels[[run_norm]], " escapement ",
-               .loc_phrase(dn_all), ".", call. = FALSE)
+          dn <- dn_all
+          run_str <- run_labels_lc[[run_norm]]
+          # If hatchery=TRUE and location also has no hatchery at all,
+          # combine both facts into one message.
+          if (isTRUE(hatchery) &&
+              !.location_has_hatchery(bad_locs[1], run_norm = NULL)) {
+            stop("There is no ", run_str, " escapement or hatchery ",
+                 .loc_phrase(dn, "on"), ".", call. = FALSE)
+          } else {
+            stop("There is no ", run_str, " escapement ",
+                 .loc_phrase(dn, "on"), ".", call. = FALSE)
+          }
         } else {
           stop("There is no ", run_labels[[run_norm]], " escapement at any of: ",
                paste(dn_all, collapse = ", "), ".", call. = FALSE)
@@ -1801,7 +1813,7 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
           dn <- unname(.location_display_names[loc])
           dn <- if (!is.na(dn)) dn else loc
           warning("There is no ", run_labels[[run_norm]], " escapement ",
-                  .loc_phrase(dn), ". Skipping.", call. = FALSE)
+                  .loc_phrase(dn, "on"), ". Skipping.", call. = FALSE)
         }
         loc_norm <- good_locs
       }
@@ -1826,13 +1838,12 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
         stop("There is no hatchery ", .loc_phrase(dn, "on"), ".", call. = FALSE)
       }
       if (!is.null(check_run) && !.location_has_hatchery(loc, check_run)) {
-        known     <- check_run[check_run %in% names(run_labels)]
-        run_str   <- paste(unname(run_labels[known]), collapse = " or ")
-        hatch_name <- .location_hatchery_display(loc)
-        at_str    <- if (!is.null(hatch_name)) paste0("at ", hatch_name)
-                     else paste0("in the ", dn)
-        stop("There are no ", run_str, " hatchery returns ", at_str, ".",
-             call. = FALSE)
+        run_labels_lc <- c(lf = "late-fall-run", w = "winter-run",
+                           s  = "spring-run",    f  = "fall-run")
+        known   <- check_run[check_run %in% names(run_labels_lc)]
+        run_str <- paste(unname(run_labels_lc[known]), collapse = " or ")
+        stop("There are no ", run_str, " hatchery returns ",
+             .loc_phrase(dn, "on"), ".", call. = FALSE)
       }
     }
   }
