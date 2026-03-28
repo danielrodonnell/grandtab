@@ -91,9 +91,9 @@
 #'   (winter), \code{"s"} (spring), \code{"f"} (fall), or \code{NULL} for all.
 #' @param river_system Character. River system to filter by: \code{"sacramento"},
 #'   \code{"san joaquin"}, \code{"feather"}, or \code{NULL} for all.
-#' @param location Character. Specific location or hatchery name to filter by,
-#'   or \code{NULL} for all. If \code{"bear"}, an interactive menu prompts for
-#'   Bear River or Bear Creek.
+#' @param location Character scalar or vector. Location or hatchery name(s) to
+#'   filter by, or \code{NULL} for all. Unrecognised names produce a warning and
+#'   are skipped.
 #' @param as_tibble Logical. If \code{TRUE}, return a single tidy tibble with
 #'   a \code{run} column instead of a list of tibbles. Default \code{FALSE}.
 #'
@@ -112,19 +112,30 @@ get_locations <- function(run = NULL, river_system = NULL, location = NULL,
   run_norm <- .normalize_run(run)
   rs_norm  <- .normalize_river_system(river_system)
 
-  loc_norm   <- NULL
-  hatch_key  <- NULL
+  loc_norms  <- character(0)
+  hatch_keys <- character(0)
 
   if (!is.null(location)) {
-    hatch_info <- .resolve_hatchery(location)
-    if (!is.null(hatch_info)) {
-      # Find the key for this hatchery
-      hatch_key <- names(Filter(
-        function(h) h$col_suffix == hatch_info$col_suffix, .hatchery_patterns
-      ))
-    } else {
-      loc_norm <- .normalize_location(location)
+    for (loc in location) {
+      hatch_info <- .resolve_hatchery(loc)
+      if (!is.null(hatch_info)) {
+        key <- names(Filter(
+          function(h) h$col_suffix == hatch_info$col_suffix, .hatchery_patterns
+        ))
+        hatch_keys <- c(hatch_keys, key)
+      } else {
+        ln <- tryCatch(.normalize_location(loc), error = function(e) NULL)
+        if (!is.null(ln)) {
+          loc_norms <- c(loc_norms, ln)
+        } else {
+          warning("Location '", loc, "' not found in GrandTab. Skipping.",
+                  call. = FALSE)
+        }
+      }
     }
+    if (length(loc_norms) == 0 && length(hatch_keys) == 0)
+      stop("None of the specified location(s) were found in GrandTab.",
+           call. = FALSE)
   }
 
   # -- Build river rows -------------------------------------------------------
@@ -189,11 +200,11 @@ get_locations <- function(run = NULL, river_system = NULL, location = NULL,
   all_rows <- rbind(river_long, hatchery_long)
 
   # -- Filter -----------------------------------------------------------------
-  if (!is.null(loc_norm)) {
-    all_rows <- all_rows[all_rows$location_id == loc_norm, ]
-  } else if (!is.null(hatch_key) && length(hatch_key) > 0) {
-    all_rows <- all_rows[all_rows$location_id == hatch_key[1] &
-                           all_rows$location_type == "hatchery", ]
+  if (length(loc_norms) > 0 || length(hatch_keys) > 0) {
+    river_match   <- all_rows$location_id %in% loc_norms
+    hatchery_match <- all_rows$location_id %in% hatch_keys &
+                        all_rows$location_type == "hatchery"
+    all_rows <- all_rows[river_match | hatchery_match, ]
   }
 
   if (!is.null(rs_norm)) {
@@ -204,42 +215,27 @@ get_locations <- function(run = NULL, river_system = NULL, location = NULL,
     all_rows <- all_rows[all_rows$run_code %in% run_norm, ]
   }
 
-  # -- Check for not-found / empty results ------------------------------------
-  if (!is.null(location)) {
-    if (nrow(all_rows) == 0) {
-      # Determine if the location exists at all (ignoring run filter)
-      loc_exists <- if (!is.null(hatch_key)) {
-        length(hatch_key) > 0
-      } else if (!is.null(loc_norm)) {
-        loc_norm %in% names(.location_cols)
-      } else {
-        FALSE
-      }
-
-      if (!loc_exists) {
-        stop("Location '", location, "' not found in GrandTab.", call. = FALSE)
-      } else if (!is.null(run_norm) && !identical(run_norm, "all")) {
-        run_label_map2 <- c(lf = "Late-Fall Run", w = "Winter Run",
-                            s  = "Spring Run",    f  = "Fall Run")
-        run_str <- paste(unname(run_label_map2[run_norm]), collapse = " or ")
-        loc_disp <- if (!is.null(loc_norm)) {
-          dn <- unname(.location_display_names[loc_norm])
-          if (!is.na(dn)) dn else location
-        } else {
-          location
-        }
-        stop("There is no ", run_str, " escapement ",
-             .loc_phrase(loc_disp), ".", call. = FALSE)
-      } else if (!is.null(rs_norm)) {
-        rs_display <- c(sacramento = "Sacramento", san_joaquin = "San Joaquin",
-                        feather = "Feather")
-        stop("No matching locations found in the ",
-             unname(rs_display[rs_norm]), " River system.", call. = FALSE)
-      } else {
-        stop("No locations found for the specified filters.", call. = FALSE)
-      }
+  # -- Check for empty results after run/river_system filters ----------------
+  if (!is.null(location) && nrow(all_rows) == 0) {
+    if (!is.null(run_norm) && !identical(run_norm, "all")) {
+      run_label_map2 <- c(lf = "Late-Fall Run", w = "Winter Run",
+                          s  = "Spring Run",    f  = "Fall Run")
+      run_str  <- paste(unname(run_label_map2[run_norm]), collapse = " or ")
+      loc_disp <- if (length(loc_norms) == 1) {
+        dn <- unname(.location_display_names[loc_norms])
+        if (!is.na(dn)) dn else loc_norms
+      } else paste(location, collapse = ", ")
+      stop("There is no ", run_str, " escapement ",
+           .loc_phrase(loc_disp), ".", call. = FALSE)
+    } else if (!is.null(rs_norm)) {
+      rs_display <- c(sacramento = "Sacramento", san_joaquin = "San Joaquin",
+                      feather = "Feather")
+      stop("No matching locations found in the ",
+           unname(rs_display[rs_norm]), " River system.", call. = FALSE)
+    } else {
+      stop("No locations found for the specified filters.", call. = FALSE)
     }
-  } else if (nrow(all_rows) == 0) {
+  } else if (is.null(location) && nrow(all_rows) == 0) {
     # No location filter but still empty (e.g. run + river_system combo)
     if (!is.null(run_norm) && !is.null(rs_norm)) {
       run_label_map2 <- c(lf = "Late-Fall Run", w = "Winter Run",
