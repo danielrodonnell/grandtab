@@ -564,8 +564,10 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     }
   }
 
-  # Filter flowlines by hatchery origin flag
-  if (!is.null(hatchery)) {
+  # Filter flowlines by hatchery origin flag — only when browsing (no specific
+  # location given). When a location is specified, hatchery is validated against
+  # that location directly and the flowlines filter would hide it from the map.
+  if (!is.null(hatchery) && is.null(location)) {
     suffix <- if (isTRUE(hatchery)) .hatch_suffix_re else "_inr$"
     keep <- vapply(spatial$flowlines$location_id, function(lid) {
       data_id <- .map_loc_to_data_id(lid)
@@ -617,8 +619,15 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       dn_vals <- meta$display_name[
         meta$location_id %in% assoc_locs[assoc_locs %in% spatial$location_meta$location_id]]
       loc_name <- if (length(dn_vals) >= 1) dn_vals[1] else loc_info$id
-      stop("There is no ", run_str, " escapement ",
-           .loc_phrase(loc_name, "on"), ".", call. = FALSE)
+      has_hatch <- any(meta$has_hatchery[meta$location_id %in% assoc_locs],
+                       na.rm = TRUE)
+      if (isTRUE(hatchery) && !has_hatch) {
+        stop("There is no ", run_str, " escapement or hatchery ",
+             .loc_phrase(loc_name, "on"), ".", call. = FALSE)
+      } else {
+        stop("There is no ", run_str, " escapement ",
+             .loc_phrase(loc_name, "on"), ".", call. = FALSE)
+      }
     }
   }
 
