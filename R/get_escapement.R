@@ -1317,6 +1317,12 @@
   # Convert run_year to integer (brackets already stripped above)
   tbl$run_year <- suppressWarnings(as.integer(tbl$run_year))
 
+  # Coerce all non-meta columns to numeric
+  meta_cols <- c("run_year", "provisional_data", grep("_spawn_period$", names(tbl), value = TRUE))
+  for (col in setdiff(names(tbl), meta_cols)) {
+    tbl[[col]] <- suppressWarnings(as.numeric(tbl[[col]]))
+  }
+
   # Trim leading rows where ALL data columns are NA
   meta_re   <- "run_year|spawn_period|provisional"
   data_mask <- !grepl(meta_re, names(tbl))
