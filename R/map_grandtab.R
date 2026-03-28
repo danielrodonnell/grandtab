@@ -676,15 +676,30 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
   map_section <- NULL
   if (!is_sac && !is.null(section)) {
     roman_map <- c(I = 1L, II = 2L, III = 3L, IV = 4L)
-    map_section <- vapply(trimws(as.character(section)), function(s) {
-      rh <- roman_map[toupper(s)]
-      if (!is.na(rh)) return(unname(rh))
-      si <- suppressWarnings(as.integer(s))
-      if (is.na(si) || as.character(si) != s || !si %in% 1:4)
-        stop("'section' must be 1, 2, 3, or 4 (or Roman numeral I-IV).",
-             call. = FALSE)
-      si
-    }, integer(1))
+    if (length(section) == 1L &&
+        grepl("^all?$", trimws(tolower(as.character(section))))) {
+      map_section <- 1:4
+    } else {
+      map_section <- vapply(trimws(as.character(section)), function(s) {
+        rh <- roman_map[toupper(s)]
+        if (!is.na(rh)) return(unname(rh))
+        si <- suppressWarnings(as.integer(s))
+        if (is.na(si) || as.character(si) != s || !si %in% 1:4)
+          stop("'section' must be 1, 2, 3, or 4 (or Roman numeral I-IV), ",
+               "or \"all\".", call. = FALSE)
+        si
+      }, integer(1))
+    }
+    # Restrict sections to those matching river_system
+    if (!is.null(rs_norm)) {
+      if (rs_norm == "sacramento")
+        map_section <- map_section[map_section %in% 1:3]
+      else if (rs_norm == "san_joaquin")
+        map_section <- map_section[map_section == 4L]
+    }
+    if (length(map_section) == 0)
+      stop("No fall run sections match the specified 'river_system'.",
+           call. = FALSE)
   }
 
   # Compute which location_ids are visible on the map (used to filter hatcheries)
