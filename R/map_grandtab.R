@@ -204,15 +204,14 @@
 # -- Resolve point features display logic ------------------------------------
 
 .resolve_points <- function(loc_info, show_hatcheries, spatial, visible_ids = NULL) {
+  # FALSE: hide all hatchery markers
   if (isFALSE(show_hatcheries)) return(spatial$points[0L, ])
 
+  # NULL or TRUE: show hatcheries whose associated stream is visible
   hatcheries <- spatial$points[spatial$points$point_type == "hatchery", ]
-
-  # Restrict to hatcheries whose stream is visible on the map
   if (!is.null(visible_ids)) {
     hatcheries <- hatcheries[hatcheries$associated_location %in% visible_ids, ]
   }
-
   hatcheries
 }
 
@@ -501,10 +500,11 @@
 #'   and \code{hatchery = FALSE}, an error is returned. If \code{hatchery = TRUE}
 #'   and the specified location has no hatchery returns, an error is returned.
 #'   Default \code{NULL} shows all streams.
-#' @param show_hatcheries Logical or \code{NULL}. Whether to display hatchery
-#'   markers. Default \code{TRUE} shows all hatcheries whose stream is visible
-#'   on the map. \code{FALSE} hides all markers. \code{NULL} shows only the
-#'   hatchery associated with the selected location.
+#' @param show_hatcheries Logical or \code{NULL} (default). Controls hatchery
+#'   marker display. \code{NULL} (default) shows hatchery markers wherever they
+#'   exist for visible streams, silently. \code{TRUE} does the same but prints a
+#'   message when the specified location has no associated hatchery.
+#'   \code{FALSE} hides all hatchery markers.
 #'
 #' @return Invisible \code{NULL}. Called for its side effect (interactive map).
 #'
@@ -533,11 +533,12 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
                           section = NULL, hatchery = NULL,
                           base_map = c("CartoDB.Positron", "Esri.WorldImagery",
                                        "Esri.WorldTopoMap", "OpenTopoMap"),
-                          show_hatcheries = TRUE) {
+                          show_hatcheries = NULL) {
 
-  if (!is.logical(show_hatcheries) || length(show_hatcheries) != 1L ||
-      is.na(show_hatcheries))
-    stop("'show_hatcheries' must be TRUE or FALSE.", call. = FALSE)
+  if (!is.null(show_hatcheries) &&
+      (!is.logical(show_hatcheries) || length(show_hatcheries) != 1L ||
+       is.na(show_hatcheries)))
+    stop("'show_hatcheries' must be TRUE, FALSE, or NULL.", call. = FALSE)
 
   if (!is.null(hatchery) && !is.logical(hatchery))
     stop("'hatchery' must be TRUE, FALSE, or NULL.", call. = FALSE)
@@ -621,7 +622,8 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     }
   }
 
-  # When show_hatcheries=TRUE and a specific location is given, message if no hatchery
+  # When show_hatcheries=TRUE and the location has no hatchery, message and continue.
+  # show_hatcheries=NULL silently shows hatcheries only if they exist — no message.
   if (isTRUE(show_hatcheries) && !is.null(loc_info) &&
       loc_info$type == "location") {
     assoc_locs <- if (is.list(loc_info$assoc_location))
@@ -637,6 +639,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       message("There is no hatchery ", .loc_phrase(dn, "on"), ".")
     }
   }
+  # show_hatcheries=NULL: treat as TRUE (show if present) with no messaging
 
   # For single Sacramento River location, restrict visible flowlines to Sacramento system
   if (!is.null(location) && length(location) == 1 &&
