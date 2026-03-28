@@ -621,7 +621,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     }
   }
 
-  # When show_hatcheries=TRUE and a specific location is given, error if no hatchery
+  # When show_hatcheries=TRUE and a specific location is given, message if no hatchery
   if (isTRUE(show_hatcheries) && !is.null(loc_info) &&
       loc_info$type == "location") {
     assoc_locs <- if (is.list(loc_info$assoc_location))
@@ -634,7 +634,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       dn <- if (length(dn_vals) == 1) dn_vals
             else if (length(dn_vals) > 1) paste(dn_vals, collapse = " / ")
             else loc_info$id
-      stop("There is no hatchery ", .loc_phrase(dn, "on"), ".", call. = FALSE)
+      message("There is no hatchery ", .loc_phrase(dn, "on"), ".")
     }
   }
 
@@ -659,7 +659,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
       if (!has_hatch) {
         dn_vals <- meta$display_name[meta$location_id %in% assoc_locs]
         dn <- if (length(dn_vals) == 1) dn_vals else loc_info$id
-        stop("There is no hatchery ", .loc_phrase(dn, "on"), ".", call. = FALSE)
+        message("There is no hatchery ", .loc_phrase(dn, "on"), ".")
       }
     }
   }
