@@ -9,7 +9,7 @@ get_column_metadata(
   run = NULL,
   river_system = NULL,
   location = NULL,
-  summary = NULL,
+  summary = FALSE,
   section = NULL,
   hatchery = NULL
 )
@@ -28,8 +28,8 @@ when piped. Leave \code{NULL} (default) for standalone use.}
 \item{location}{Character. Location name(s). Passed to
 \code{get_escapement()}.}
 
-\item{summary}{Logical. Summary-level data. Passed to
-\code{get_escapement()}.}
+\item{summary}{Logical (\code{TRUE} or \code{FALSE}, default \code{FALSE}).
+Passed to \code{get_escapement()}.}
 
 \item{section}{Integer 1--4. Fall run section. Passed to
 \code{get_escapement()}.}

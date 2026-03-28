@@ -1313,6 +1313,23 @@
   }
 
   tbl$provisional_data <- provisional
+
+  # Convert run_year to integer (brackets already stripped above)
+  tbl$run_year <- suppressWarnings(as.integer(tbl$run_year))
+
+  # Trim leading rows where ALL data columns are NA
+  meta_re   <- "run_year|spawn_period|provisional"
+  data_mask <- !grepl(meta_re, names(tbl))
+  if (any(data_mask)) {
+    all_na <- apply(tbl[, data_mask, drop = FALSE], 1,
+                    function(row) all(is.na(row)))
+    first_data <- which(!all_na)
+    if (length(first_data) > 0 && first_data[1] > 1) {
+      tbl <- tbl[first_data[1]:nrow(tbl), , drop = FALSE]
+      row.names(tbl) <- NULL
+    }
+  }
+
   tbl
 }
 
@@ -1400,8 +1417,15 @@
   }
 
   if (!is.null(section)) {
-    tbl_idx <- .section_to_table[as.character(section)]
-    return(.prepare_table(tbl_idx, "f"))
+    if (length(section) == 1L) {
+      return(.prepare_table(.section_to_table[as.character(section)], "f"))
+    }
+    result <- list()
+    for (s in section) {
+      idx  <- .section_to_table[as.character(s)]
+      result[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
+    }
+    return(result)
   }
 
   if (!is.null(loc)) {
@@ -1478,7 +1502,16 @@
         .extract_t1_run(ra)
       } else if (ra == "f") {
         if (!is.null(section)) {
-          .prepare_table(.section_to_table[as.character(section)], "f")
+          if (length(section) == 1L) {
+            .prepare_table(.section_to_table[as.character(section)], "f")
+          } else {
+            sec_list <- list()
+            for (s in section) {
+              idx <- .section_to_table[as.character(s)]
+              sec_list[[grandtab_detail[[idx]][[1]]]] <- .prepare_table(idx, "f")
+            }
+            sec_list
+          }
         } else if (!is.null(rs)) {
           .route_fall(rs, NULL, NULL, NULL)
         } else {
@@ -1575,9 +1608,7 @@
 #' @param location Character. Location name(s), e.g. \code{"clear"},
 #'   \code{"battle"}, \code{"feather"}. Flexible matching via substrings.
 #'   Vectors accepted for multiple locations.
-#' @param summary Logical or \code{"all"}. If \code{TRUE} or \code{"all"},
-#'   return summary-level data from Table 1. If \code{FALSE} or \code{NULL},
-#'   return detail data.
+#' @param summary Logical. If \code{TRUE}, return summary-level data. Default \code{FALSE}.
 #' @param section Integer 1--4. Fall run geographic section (maps to
 #'   Tables 8--11). Only valid for fall run.
 #' @param run_years Numeric vector of years to filter results to, or
@@ -1590,7 +1621,7 @@
 #' @return A tibble or named list of tibbles.
 #' @export
 get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
-                           summary = NULL, section = NULL, run_years = NULL,
+                           summary = FALSE, section = NULL, run_years = NULL,
                            hatchery = NULL) {
 
   if (!is.null(hatchery) && !is.logical(hatchery))
@@ -1613,8 +1644,8 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
   }
   loc_norm <- if (is_hatchery_loc) hatch_info$assoc_loc else .normalize_location(location)
 
-  if (isFALSE(summary)) summary <- NULL
-  if (identical(tolower(as.character(summary)), "all")) summary <- TRUE
+  if (!is.logical(summary) || length(summary) != 1L || is.na(summary))
+    stop("'summary' must be TRUE or FALSE.", call. = FALSE)
 
   # -- Validate run_years -----------------------------------------------------
   if (!is.null(run_years)) {
@@ -1677,19 +1708,18 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
   # -- Validate ---------------------------------------------------------------
 
   if (!is.null(section)) {
-    sec_str    <- trimws(as.character(section))
-    roman_map  <- c(I = 1L, II = 2L, III = 3L, IV = 4L)
-    roman_hit  <- roman_map[toupper(sec_str)]
-    if (!is.na(roman_hit)) {
-      section <- unname(roman_hit)
-    } else {
-      s_int <- suppressWarnings(as.integer(sec_str))
-      if (is.na(s_int) || as.character(s_int) != sec_str)
+    roman_map <- c(I = 1L, II = 2L, III = 3L, IV = 4L)
+    section   <- vapply(trimws(as.character(section)), function(s) {
+      rh <- roman_map[toupper(s)]
+      if (!is.na(rh)) return(unname(rh))
+      si <- suppressWarnings(as.integer(s))
+      if (is.na(si) || as.character(si) != s)
         stop("'section' must be 1, 2, 3, or 4 (or Roman numeral I-IV).",
              call. = FALSE)
-      section <- s_int
-    }
-    if (!section %in% 1:4)
+      si
+    }, integer(1))
+    bad <- section[!section %in% 1:4]
+    if (length(bad) > 0)
       stop("'section' must be 1, 2, 3, or 4 (or Roman numeral I-IV).",
            call. = FALSE)
     if (!is.null(run_norm) && length(run_norm) == 1 &&
@@ -1697,18 +1727,19 @@ get_escapement <- function(run = NULL, river_system = NULL, location = NULL,
       stop("'section' only applies to fall run. Only fall run data is ",
            "organized by geographic section. Did you mean `run = 'f'`?",
            call. = FALSE)
-  }
-
-  if (!is.null(section) && !is.null(rs_norm)) {
-    if (section == 4L && rs_norm == "sacramento") {
-      stop("Fall Run Section 4 covers the San Joaquin River system, not the ",
-           "Sacramento River system. Did you mean `river_system = 'san_joaquin'`?",
-           call. = FALSE)
-    }
-    if (section %in% 1:3 && rs_norm == "san_joaquin") {
-      stop("Fall Run Section ", section, " covers the Sacramento River system, not ",
-           "the San Joaquin River system. Did you mean `river_system = 'sacramento'`?",
-           call. = FALSE)
+    # Cross-validate section vs river_system
+    if (!is.null(rs_norm)) {
+      bad_s4_sac <- 4L %in% section && rs_norm == "sacramento"
+      bad_s123_sj <- any(section %in% 1:3) && rs_norm == "san_joaquin"
+      if (bad_s4_sac)
+        stop("Fall Run Section 4 covers the San Joaquin River system, not the ",
+             "Sacramento River system. Did you mean `river_system = 'san_joaquin'`?",
+             call. = FALSE)
+      if (bad_s123_sj)
+        stop("Fall Run Section(s) ", paste(section[section %in% 1:3], collapse=", "),
+             " cover the Sacramento River system, not the San Joaquin River system. ",
+             "Did you mean `river_system = 'sacramento'`?",
+             call. = FALSE)
     }
   }
 

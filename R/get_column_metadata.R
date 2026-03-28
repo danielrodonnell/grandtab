@@ -410,8 +410,8 @@
 #'   \code{get_escapement()}.
 #' @param location Character. Location name(s). Passed to
 #'   \code{get_escapement()}.
-#' @param summary Logical. Summary-level data. Passed to
-#'   \code{get_escapement()}.
+#' @param summary Logical (\code{TRUE} or \code{FALSE}, default \code{FALSE}).
+#'   Passed to \code{get_escapement()}.
 #' @param section Integer 1--4. Fall run section. Passed to
 #'   \code{get_escapement()}.
 #' @param hatchery Logical or \code{NULL}. Filter by escapement origin.
@@ -434,7 +434,7 @@
 #' # get_escapement(run = "w") |> get_column_metadata()
 #' # get_escapement(run = "f", section = 2) |> get_column_metadata()
 get_column_metadata <- function(x = NULL, run = NULL, river_system = NULL,
-                                location = NULL, summary = NULL,
+                                location = NULL, summary = FALSE,
                                 section = NULL, hatchery = NULL) {
 
   if (!is.null(x) && (is.data.frame(x) ||

@@ -204,28 +204,15 @@
 # -- Resolve point features display logic ------------------------------------
 
 .resolve_points <- function(loc_info, show_hatcheries, spatial, visible_ids = NULL) {
+  if (isFALSE(show_hatcheries)) return(spatial$points[0L, ])
+
   hatcheries <- spatial$points[spatial$points$point_type == "hatchery", ]
 
-  if (isFALSE(show_hatcheries)) {
-    return(hatcheries[0L, ])  # empty
-  }
-
-  # Restrict to hatcheries whose stream is actually on the map
+  # Restrict to hatcheries whose stream is visible on the map
   if (!is.null(visible_ids)) {
     hatcheries <- hatcheries[hatcheries$associated_location %in% visible_ids, ]
   }
 
-  if (isTRUE(show_hatcheries)) {
-    return(hatcheries)
-  }
-
-  # show_hatcheries is NULL — show hatcheries associated with selected location
-  if (!is.null(loc_info)) {
-    assoc_locs <- loc_info$assoc_location
-    return(hatcheries[hatcheries$associated_location %in% assoc_locs, ])
-  }
-
-  # Default: show all hatcheries (already filtered to visible streams)
   hatcheries
 }
 
@@ -315,7 +302,7 @@
       highlight_ids <- flowlines$location_id[flowlines$river_system == args$river_system]
     } else if (!is.null(args$section)) {
       highlight_ids <- flowlines$location_id[
-        !is.na(flowlines$fall_section) & flowlines$fall_section == args$section
+        !is.na(flowlines$fall_section) & flowlines$fall_section %in% args$section
       ]
     }
 
@@ -548,6 +535,10 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
                                        "Esri.WorldTopoMap", "OpenTopoMap"),
                           show_hatcheries = TRUE) {
 
+  if (!is.logical(show_hatcheries) || length(show_hatcheries) != 1L ||
+      is.na(show_hatcheries))
+    stop("'show_hatcheries' must be TRUE or FALSE.", call. = FALSE)
+
   if (!is.null(hatchery) && !is.logical(hatchery))
     stop("'hatchery' must be TRUE, FALSE, or NULL.", call. = FALSE)
 
@@ -595,10 +586,60 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
   rs_norm  <- .normalize_river_system(river_system)
   # For Sacramento, pass section so .normalize_map_location() can resolve it
   # directly (or show a menu if section is NULL).
-  loc_info <- .normalize_map_location(location, if (is_sac) section else NULL)
+  if (!is.null(location) && length(location) > 1) {
+    # Normalize each location and combine their assoc_locations
+    loc_infos <- lapply(location, function(l) {
+      is_sac_l <- grepl("^sac", tolower(trimws(l)))
+      .normalize_map_location(l, if (is_sac_l) section else NULL)
+    })
+    all_assoc <- unique(unlist(lapply(loc_infos, `[[`, "assoc_location")))
+    types     <- vapply(loc_infos, `[[`, character(1), "type")
+    loc_info  <- list(type           = if (all(types == "hatchery")) "hatchery" else "location",
+                      id             = paste(vapply(loc_infos, `[[`, character(1), "id"), collapse="+"),
+                      assoc_location = all_assoc)
+  } else {
+    loc_info <- .normalize_map_location(location, if (is_sac) section else NULL)
+  }
 
-  # For Sacramento River locations, restrict visible flowlines to Sacramento system
-  if (!is.null(loc_info) && grepl("^sac", loc_info$id)) {
+  # When show_hatcheries=TRUE and a specific location is given, error if no hatchery
+  if (isTRUE(show_hatcheries) && !is.null(loc_info) &&
+      loc_info$type == "location") {
+    assoc_locs <- if (is.list(loc_info$assoc_location))
+      unlist(loc_info$assoc_location) else loc_info$assoc_location
+    meta <- spatial$location_meta
+    has_hatch <- any(meta$has_hatchery[meta$location_id %in% assoc_locs],
+                     na.rm = TRUE)
+    if (!has_hatch) {
+      dn_vals <- meta$display_name[meta$location_id %in% assoc_locs]
+      dn <- if (length(dn_vals) == 1) dn_vals
+            else if (length(dn_vals) > 1) paste(dn_vals, collapse = " / ")
+            else loc_info$id
+      stop("There is no hatchery on ", dn, ".", call. = FALSE)
+    }
+  }
+
+  # Error if the location+run combination yields no matching streams
+  if (!is.null(loc_info) && !is.null(run_norm) && nrow(spatial$flowlines) > 0) {
+    assoc_locs <- if (is.list(loc_info$assoc_location))
+      unlist(loc_info$assoc_location) else loc_info$assoc_location
+    loc_in_map <- any(assoc_locs %in% spatial$flowlines$location_id)
+    if (!loc_in_map) {
+      run_label_map <- c(lf = "late-fall run", w = "winter run",
+                         s  = "spring run",    f  = "fall run")
+      run_str <- if (length(run_norm) == 1) run_label_map[run_norm]
+                 else paste(run_label_map[run_norm], collapse = " or ")
+      meta <- spatial$location_meta
+      dn_vals <- meta$display_name[
+        meta$location_id %in% assoc_locs[assoc_locs %in% spatial$location_meta$location_id]]
+      loc_name <- if (length(dn_vals) >= 1) dn_vals[1] else loc_info$id
+      stop("There is no ", run_str, " escapement in the ",
+           loc_name, ".", call. = FALSE)
+    }
+  }
+
+  # For single Sacramento River location, restrict visible flowlines to Sacramento system
+  if (!is.null(location) && length(location) == 1 &&
+      !is.null(loc_info) && grepl("^sac", loc_info$id)) {
     spatial$flowlines <- spatial$flowlines[spatial$flowlines$river_system == "sacramento", ]
   }
 
@@ -633,19 +674,16 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
   # (1-4). When location is Sacramento, section was consumed above.
   map_section <- NULL
   if (!is_sac && !is.null(section)) {
-    sec_str   <- trimws(as.character(section))
     roman_map <- c(I = 1L, II = 2L, III = 3L, IV = 4L)
-    roman_hit <- roman_map[toupper(sec_str)]
-    if (!is.na(roman_hit)) {
-      map_section <- unname(roman_hit)
-    } else {
-      s <- suppressWarnings(as.integer(sec_str))
-      if (is.na(s) || as.character(s) != sec_str || !s %in% 1:4) {
+    map_section <- vapply(trimws(as.character(section)), function(s) {
+      rh <- roman_map[toupper(s)]
+      if (!is.na(rh)) return(unname(rh))
+      si <- suppressWarnings(as.integer(s))
+      if (is.na(si) || as.character(si) != s || !si %in% 1:4)
         stop("'section' must be 1, 2, 3, or 4 (or Roman numeral I-IV).",
              call. = FALSE)
-      }
-      map_section <- s
-    }
+      si
+    }, integer(1))
   }
 
   # Compute which location_ids are visible on the map (used to filter hatcheries)
@@ -656,7 +694,7 @@ map_grandtab <- function(run = NULL, river_system = NULL, location = NULL,
     flowlines$location_id[flowlines$river_system == rs_norm]
   } else if (!is.null(map_section)) {
     flowlines$location_id[!is.na(flowlines$fall_section) &
-                            flowlines$fall_section == map_section]
+                            flowlines$fall_section %in% map_section]
   } else {
     NULL  # all streams visible
   }

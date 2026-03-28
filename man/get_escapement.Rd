@@ -8,7 +8,7 @@ get_escapement(
   run = NULL,
   river_system = NULL,
   location = NULL,
-  summary = NULL,
+  summary = FALSE,
   section = NULL,
   run_years = NULL,
   hatchery = NULL
@@ -26,9 +26,7 @@ or \code{"feather"}. Partial matching supported.}
 \code{"battle"}, \code{"feather"}. Flexible matching via substrings.
 Vectors accepted for multiple locations.}
 
-\item{summary}{Logical or \code{"all"}. If \code{TRUE} or \code{"all"},
-return summary-level data from Table 1. If \code{FALSE} or \code{NULL},
-return detail data.}
+\item{summary}{Logical. If \code{TRUE}, return summary-level data. Default \code{FALSE}.}
 
 \item{section}{Integer 1--4. Fall run geographic section (maps to
 Tables 8--11). Only valid for fall run.}
