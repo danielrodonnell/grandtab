@@ -2,8 +2,12 @@ Package: grandtab
 Type: Package
 Title: Programmatic Access to California GrandTab Chinook Salmon Escapement Data
 Version: 0.1.0
-Authors@R: person("Danny", "O'Donnell", email = "dodonnell2011@gmail.com",
-    role = c("aut", "cre"))
+Authors@R: c(
+    person("Danny", "O'Donnell", email = "dodonnell2011@gmail.com",
+        role = c("aut", "cre")),
+    person("Jesse R.", "Schroeder", email = "jrschroeder@ucdavis.edu",
+        role = "ctb",
+        comment = c(affiliation = "University of California, Davis")))
 Description: Provides functions to query and retrieve California Department of
     Fish and Wildlife GrandTab Chinook salmon escapement data for all four
     Central Valley runs (fall, late-fall, winter, spring). Supports filtering
